@@ -8,6 +8,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "القرآن الكريم",
   description: "اقرأ القرآن الكريم بالرسم العثماني",
+  other: { "darkreader-lock": "true" }, // site is already dark: tell Dark Reader to stay off
 };
 
 export default function RootLayout({
@@ -19,6 +20,7 @@ export default function RootLayout({
     <html
       lang="ar"
       dir="rtl"
+      suppressHydrationWarning
       className={`${sans.variable} ${serif.variable} ${arabic.variable} ${quranFont.variable} bg-black`}>
       <body className="min-h-screen font-sans text-white antialiased">
         {/* Soft orange light behind the page so glass effects are visible */}
@@ -33,8 +35,11 @@ export default function RootLayout({
         {children}
         <footer
           dir="ltr"
-          className="px-6 py-10 text-center text-xs text-white/30">
+          className="px-6 py-10 text-center text-xs leading-relaxed text-white/30">
           Quran text: Tanzil Project (tanzil.net) — CC BY 3.0
+          <br />
+          English translation: Saheeh International, via Tanzil — non-commercial
+          use
         </footer>
       </body>
     </html>

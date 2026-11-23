@@ -11,7 +11,12 @@ export type Surah = {
   ayah_count: number;
 };
 
-export type Ayah = { id: number; ayah_number: number; text_uthmani: string };
+export type Ayah = {
+  id: number;
+  ayah_number: number;
+  text_uthmani: string;
+  translation: string | null;
+};
 
 // The Quran text never changes, so cache it for as long as possible
 export async function getSurahs(): Promise<Surah[]> {
@@ -25,21 +30,50 @@ export async function getSurahs(): Promise<Surah[]> {
   return data;
 }
 
+const TRANSLATION_NAME = "Saheeh International";
+
+export async function getTranslationId(): Promise<number | null> {
+  "use cache";
+  cacheLife("max");
+  const { data, error } = await supabasePublic
+    .from("resources")
+    .select("id")
+    .eq("kind", "translation")
+    .eq("name", TRANSLATION_NAME)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data?.id ?? null;
+}
+
 export async function getSurahWithAyahs(id: number) {
   "use cache";
   cacheLife("max");
+  const translationId = await getTranslationId();
+
+  const ayahsQuery = supabasePublic
+    .from("ayahs")
+    .select("id, ayah_number, text_uthmani, ayah_resources(resource_id, text)")
+    .eq("surah_id", id)
+    .eq("ayah_resources.resource_id", translationId ?? -1)
+    .order("ayah_number");
+
   const [surah, ayahs] = await Promise.all([
     supabasePublic.from("surahs").select("*").eq("id", id).maybeSingle(),
-    supabasePublic
-      .from("ayahs")
-      .select("id, ayah_number, text_uthmani")
-      .eq("surah_id", id)
-      .order("ayah_number"),
+    ayahsQuery,
   ]);
   if (surah.error) throw new Error(surah.error.message);
   if (ayahs.error) throw new Error(ayahs.error.message);
   if (!surah.data) return null;
-  return { surah: surah.data as Surah, ayahs: ayahs.data as Ayah[] };
+
+  return {
+    surah: surah.data as Surah,
+    ayahs: ayahs.data.map((a) => ({
+      id: a.id,
+      ayah_number: a.ayah_number,
+      text_uthmani: a.text_uthmani,
+      translation: a.ayah_resources?.[0]?.text ?? null,
+    })) as Ayah[],
+  };
 }
 
 // Basmala = text of Al-Fatihah 1:1, taken from the database itself

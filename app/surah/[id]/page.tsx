@@ -3,12 +3,14 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { quranFont } from "@/lib/fonts";
+import { Reader } from "@/components/Reader";
 import {
   displayText,
   getBasmala,
+  getSurahs,
   getSurahWithAyahs,
   toArabicDigits,
+  type Surah,
 } from "@/lib/quran";
 
 // Pre-render all 114 surahs at build time
@@ -21,7 +23,7 @@ type Params = Promise<{ id: string }>;
 // Shell renders instantly; surah content streams in
 export default function SurahPage({ params }: { params: Params }) {
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <main className="mx-auto max-w-3xl px-6 pt-10 pb-32">
       <Suspense fallback={<SurahSkeleton />}>
         <SurahContent params={params} />
       </Suspense>
@@ -34,61 +36,115 @@ async function SurahContent({ params }: { params: Params }) {
   const surahId = Number(id);
   if (!Number.isInteger(surahId) || surahId < 1 || surahId > 114) notFound();
 
-  const [result, basmala] = await Promise.all([
+  const [result, basmala, allSurahs] = await Promise.all([
     getSurahWithAyahs(surahId),
     getBasmala(),
+    getSurahs(),
   ]);
   if (!result) notFound();
   const { surah, ayahs } = result;
 
+  const prev = allSurahs[surahId - 2];
+  const next = allSurahs[surahId];
+  const showBasmala = surahId !== 1 && surahId !== 9;
+
   return (
     <>
-      <nav className="mb-8 flex justify-between text-sm text-white/50">
-        {surahId > 1 ? (
-          <Link href={`/surah/${surahId - 1}`} className="hover:text-accent">
-            → السورة السابقة
-          </Link>
-        ) : (
-          <span />
-        )}
-        <Link href="/" className="hover:text-accent">
-          الفهرس
-        </Link>
-        {surahId < 114 ? (
-          <Link href={`/surah/${surahId + 1}`} className="hover:text-accent">
-            السورة التالية ←
-          </Link>
-        ) : (
-          <span />
-        )}
-      </nav>
+      <Link
+        href="/"
+        className="text-sm text-white/40 transition hover:text-accent">
+        → فهرس السور
+      </Link>
 
-      <header className="mb-10 text-center">
-        <h1 className="font-arabic text-3xl font-medium">
+      {/* Surah header */}
+      <header className="group mt-8 mb-14 text-center">
+        <div
+          dir="ltr"
+          className="flex items-center justify-center gap-3 text-xs uppercase tracking-widest text-white/40">
+          <span className="tabular-nums">
+            {String(surah.id).padStart(3, "0")}
+          </span>
+          <span aria-hidden>·</span>
+          <span>
+            {surah.revelation_place === "makkah" ? "Meccan" : "Medinan"}
+          </span>
+          <span aria-hidden>·</span>
+          <span>{surah.ayah_count} Ayahs</span>
+        </div>
+        <h1 className="glow-text mt-4 font-quran text-6xl leading-[1.6] md:text-7xl">
           سورة {surah.name_ar}
         </h1>
-        <p className="mt-2 font-arabic text-sm text-white/50">
-          {surah.revelation_place === "makkah" ? "مكية" : "مدنية"} ·{" "}
-          {toArabicDigits(surah.ayah_count)} آية
+        <p
+          dir="ltr"
+          className="mt-1 text-3xl font-medium tracking-tight md:text-4xl">
+          <span className="font-serif font-normal italic text-white/50">
+            Surah
+          </span>{" "}
+          {surah.name_en}
         </p>
       </header>
 
-      <div className={quranFont.className}>
-        {surahId !== 1 && surahId !== 9 && (
-          <p className="mb-10 text-center text-3xl">{basmala}</p>
+      <Reader>
+        {showBasmala && (
+          <div className="group mb-10 text-center">
+            <p className="basmala glow-text font-quran">{basmala}</p>
+          </div>
         )}
-        <p className="text-justify text-3xl leading-[2.4]">
+
+        <div className="quran-text font-quran">
           {ayahs.map((a) => (
-            <span key={a.id}>
-              {displayText(surahId, a, basmala)}{" "}
-              <span className="text-white/40">
-                ﴿{toArabicDigits(a.ayah_number)}﴾
-              </span>{" "}
+            <span
+              key={a.id}
+              id={`ayah-${a.ayah_number}`}
+              className="ayah glass">
+              <span className="ayah-body">
+                <span className="ayah-text">
+                  {displayText(surahId, a, basmala)}
+                </span>
+                {a.translation && (
+                  <span dir="ltr" lang="en" className="ayah-translation">
+                    {a.translation}
+                  </span>
+                )}
+              </span>
+              <span className="ayah-num">{toArabicDigits(a.ayah_number)}</span>
             </span>
           ))}
-        </p>
-      </div>
+        </div>
+      </Reader>
+
+      {/* Previous / next */}
+      <nav className="mt-20 grid grid-cols-2 gap-4">
+        {prev ? <NavCard surah={prev} label="السورة السابقة" /> : <span />}
+        {next ? <NavCard surah={next} label="السورة التالية" end /> : <span />}
+      </nav>
     </>
+  );
+}
+
+function NavCard({
+  surah,
+  label,
+  end = false,
+}: {
+  surah: Surah;
+  label: string;
+  end?: boolean;
+}) {
+  return (
+    <Link
+      href={`/surah/${surah.id}`}
+      className={`glass group block rounded-2xl p-5 transition duration-300 hover:-translate-y-1 ${end ? "text-left" : ""}`}>
+      <p className="text-xs text-white/40">{label}</p>
+      <p className="mt-2 font-arabic text-xl transition group-hover:text-accent">
+        {surah.name_ar}
+      </p>
+      <p
+        dir="ltr"
+        className={`text-sm text-white/40 ${end ? "" : "text-right"}`}>
+        {surah.name_en}
+      </p>
+    </Link>
   );
 }
 
@@ -96,10 +152,12 @@ async function SurahContent({ params }: { params: Params }) {
 function SurahSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="mx-auto mb-10 h-8 w-40 rounded bg-white/10" />
+      <div className="mx-auto mt-16 mb-4 h-3 w-48 rounded bg-white/10" />
+      <div className="mx-auto mb-3 h-14 w-64 rounded bg-white/10" />
+      <div className="mx-auto mb-16 h-8 w-52 rounded bg-white/5" />
       <div className="space-y-6">
         {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} className="h-6 rounded bg-white/5" />
+          <div key={i} className="h-7 rounded bg-white/5" />
         ))}
       </div>
     </div>
