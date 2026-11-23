@@ -1,69 +1,81 @@
-import Image from "next/image";
+/** @format */
 
-export default function Home() {
+import Link from "next/link";
+import { getSurahs } from "@/lib/quran";
+
+export default async function HomePage() {
+  const surahs = await getSurahs();
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <main className="mx-auto max-w-7xl px-6">
+      {/* Title: no frame, orange glow only on hover */}
+      <section className="flex justify-center pt-12 pb-10">
+        <div className="group relative cursor-default px-6 text-center">
+          <div
+            aria-hidden
+            className="absolute -inset-6 rounded-full bg-accent/0 blur-3xl transition duration-700 group-hover:bg-accent/30"
+          />
+          <h1 className="glow-text relative font-quran text-5xl leading-[1.7] transition duration-500 md:text-6xl">
+            القرآن الكريم
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p
+            dir="ltr"
+            className="relative font-serif text-xl italic text-white/60 transition duration-500 group-hover:text-white/80">
+            The Noble Quran
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+
+      {/* Section header */}
+      <div
+        dir="ltr"
+        className="mb-8 flex items-end justify-between border-b border-white/10 pb-4">
+        <h2 className="text-4xl font-medium tracking-tight md:text-5xl">
+          Surahs{" "}
+        </h2>
+        <span className="text-sm text-white/40">114</span>
+      </div>
+
+      {/* Surah grid: 1 / 2 / 4 per row */}
+      <ul className="grid grid-cols-1 gap-4 pb-20 sm:grid-cols-2 lg:grid-cols-4">
+        {surahs.map((s) => (
+          <li key={s.id}>
+            <Link
+              href={`/surah/${s.id}`}
+              className="glass group block overflow-hidden rounded-2xl p-5 transition duration-300 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(255,90,31,0.25)]">
+              {/* glow that appears on hover */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -top-16 -left-16 h-36 w-36 rounded-full bg-accent/0 blur-2xl transition duration-500 group-hover:bg-accent/40"
+              />
+
+              <div
+                dir="ltr"
+                className="relative flex items-center justify-between text-xs text-white/40">
+                <span className="tabular-nums">
+                  {String(s.id).padStart(3, "0")}
+                </span>
+                <span className="uppercase tracking-widest">
+                  {s.revelation_place === "makkah" ? "Meccan" : "Medinan"}
+                </span>
+              </div>
+
+              <p
+                dir="ltr"
+                className="relative mt-6 text-2xl font-medium tracking-tight transition group-hover:text-accent">
+                {s.name_en}
+              </p>
+
+              <div className="relative mt-2 flex items-baseline justify-between">
+                <p className="font-arabic text-xl text-white/80">{s.name_ar}</p>
+                <p className="font-arabic text-xs text-white/40">
+                  {s.ayah_count} آية
+                </p>
+              </div>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </main>
   );
 }
