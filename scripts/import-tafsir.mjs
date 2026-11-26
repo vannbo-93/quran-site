@@ -1,17 +1,18 @@
 /** @format */
 
 // =====================================================================
-// Import At-Tafsir Al-Muyassar (Arabic) from QuranEnc.com into Supabase.
+// Import At-Tafsir Al-Muyassar (Arabic) from Tanzil into Supabase.
+// Replaces the QuranEnc version: same resource, every row is overwritten.
 //
-// Required file (already used by import-quran.mjs, for ayah order):
-//   data/tanzil/quran-uthmani.txt
+// Required files:
+//   data/tanzil/quran-uthmani.txt  -> already used by import-quran.mjs (ayah order)
+//   data/tanzil/ar.muyassar.txt    -> Tafsir Al-Muyassar, "sura|aya|text"
 //
 // Usage:
 //   node --env-file=.env.local scripts/import-tafsir.mjs --dry-run
 //   node --env-file=.env.local scripts/import-tafsir.mjs
 //
-// QuranEnc terms: no changes to the text, credit QuranEnc.com and the
-// publisher, show the version number, no inappropriate ads.
+// License: Tanzil translations are for NON-COMMERCIAL use only.
 // =====================================================================
 
 import { readFileSync } from "node:fs";
@@ -19,106 +20,77 @@ import { createClient } from "@supabase/supabase-js";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const QURAN_FILE = "data/tanzil/quran-uthmani.txt";
-const KEY = "arabic_moyassar";
-const API = "https://quranenc.com/api/v1";
+const TRANSLATION_FILE = "data/tanzil/ar.muyassar.txt";
 const TOTAL_AYAHS = 6236;
+
+const RESOURCE = {
+  kind: "tafsir",
+  language: "ar",
+  name: "التفسير الميسر",
+  author: "مجمع الملك فهد لطباعة المصحف الشريف",
+  source: "tanzil.net/trans (ar.muyassar) — non-commercial use only",
+};
+
+const MOJIBAKE = /[ØÙÚÛ]|â€/; // signs of UTF-8 read as Windows-1252
 
 function fail(msg) {
   console.error(`\n❌ ${msg}\n   Nothing was imported.`);
   process.exit(1);
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-async function getJson(url, tries = 3) {
-  for (let attempt = 1; attempt <= tries; attempt++) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) return await res.json();
-      if (res.status === 404) return null;
-      throw new Error(`HTTP ${res.status}`);
-    } catch (err) {
-      if (attempt === tries) throw err;
-      await sleep(1000 * attempt);
-    }
-  }
-}
-
-// Global ayah id (1..6236) by "sura:aya", from the Quran text file order
-function ayahIds() {
-  const lines = readFileSync(QURAN_FILE, "utf8")
+// Read "sura|aya|text" lines, skipping comments (#) and empty lines
+function readLines(file) {
+  return readFileSync(file, "utf8")
     .replace(/^﻿/, "")
     .split(/\r?\n/)
-    .filter((l) => l.trim() && !l.startsWith("#"));
+    .filter((l) => l.trim() && !l.startsWith("#"))
+    .map((line) => {
+      const [s, a, ...rest] = line.split("|");
+      const text = rest.join("|").trim();
+      if (!s || !a || !text)
+        fail(`Bad line in ${file}: "${line.slice(0, 60)}..."`);
+      return { key: `${Number(s)}:${Number(a)}`, text };
+    });
+}
+
+function build() {
+  // Global ayah id (1..6236) = position in the Quran text file
+  const quran = readLines(QURAN_FILE);
+  if (quran.length !== TOTAL_AYAHS)
+    fail(`${QURAN_FILE} has ${quran.length} ayahs, expected 6236.`);
+  const idByKey = new Map(quran.map((q, i) => [q.key, i + 1]));
+
+  const lines = readLines(TRANSLATION_FILE);
   if (lines.length !== TOTAL_AYAHS)
-    fail(`${QURAN_FILE} has ${lines.length} ayahs, expected 6236.`);
-  return new Map(
-    lines.map((line, i) => {
-      const [s, a] = line.split("|");
-      return [`${Number(s)}:${Number(a)}`, i + 1];
-    }),
-  );
-}
+    fail(`${TRANSLATION_FILE} has ${lines.length} ayahs, expected 6236.`);
 
-async function getVersion() {
-  try {
-    const data = await getJson(`${API}/translations/list`);
-    const entry = data?.translations?.find((t) => t.key === KEY);
-    return entry?.version ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function download(idByKey) {
-  const rows = [];
-  for (let sura = 1; sura <= 114; sura++) {
-    const data = await getJson(`${API}/translation/sura/${KEY}/${sura}`);
-    if (!Array.isArray(data?.result))
-      fail(`No tafsir returned for surah ${sura}.`);
-    for (const item of data.result) {
-      const key = `${Number(item.sura)}:${Number(item.aya)}`;
-      const ayahId = idByKey.get(key);
-      if (!ayahId)
-        fail(`Ayah ${key} from QuranEnc does not exist in the Quran text.`);
-      const text = String(item.translation ?? "").trim();
-      const footnotes = String(item.footnotes ?? "").trim();
-      if (!text) fail(`Empty tafsir for ${key}.`);
-      // Keep footnotes too: the terms forbid removing content
-      rows.push({
-        ayah_id: ayahId,
-        text: footnotes ? `${text}\n${footnotes}` : text,
-        key,
-      });
-    }
-    process.stdout.write(`\r   downloaded: surah ${sura}/114`);
-    await sleep(150); // be gentle with their server
-  }
-  console.log();
+  const seen = new Set();
+  const rows = lines.map((l, i) => {
+    const ayahId = idByKey.get(l.key);
+    if (!ayahId)
+      fail(`Ayah ${l.key} in translation does not exist in the Quran text.`);
+    if (ayahId !== i + 1) fail(`Order mismatch at ${l.key} (line ${i + 1}).`);
+    if (seen.has(ayahId)) fail(`Duplicate ayah ${l.key}.`);
+    if (MOJIBAKE.test(l.text))
+      fail(
+        `Ayah ${l.key} has a wrong encoding. Re-download ${TRANSLATION_FILE} with "Save link as".`,
+      );
+    if (!/[\u0600-\u06FF]/.test(l.text))
+      fail(
+        `Ayah ${l.key} is not in Arabic. ${TRANSLATION_FILE} is the wrong file — download the row "تفسير الميسر / King Fahad Quran Complex".`,
+      );
+    seen.add(ayahId);
+    return { ayah_id: ayahId, text: l.text, key: l.key };
+  });
   return rows;
 }
 
-function validate(rows) {
-  if (rows.length !== TOTAL_AYAHS)
-    fail(`Got ${rows.length} ayahs, expected 6236.`);
-  const seen = new Set();
-  for (const r of rows) {
-    if (seen.has(r.ayah_id)) fail(`Duplicate ayah ${r.key}.`);
-    seen.add(r.ayah_id);
-  }
-}
-
 async function main() {
-  const idByKey = ayahIds();
-  console.log("Downloading At-Tafsir Al-Muyassar from QuranEnc.com...");
-  const version = await getVersion();
-  const rows = await download(idByKey);
-  validate(rows);
-
-  console.log("✅ Tafsir is complete:");
+  const rows = build();
+  console.log("✅ Tafsir file is valid:");
   console.log(`   ayahs: ${rows.length}`);
-  console.log(`   version: ${version ?? "unknown (check quranenc.com)"}`);
-  console.log(`   1:1  ${rows[0].text.slice(0, 80)}...`);
+  console.log(`   ${rows[0].key}  ${rows[0].text}`);
+  console.log(`   ${rows.at(-1).key}  ${rows.at(-1).text}`);
 
   if (DRY_RUN) {
     console.log("\n(dry run) Nothing was written to the database.");
@@ -133,15 +105,7 @@ async function main() {
     );
   const supabase = createClient(url, key, { auth: { persistSession: false } });
 
-  const RESOURCE = {
-    kind: "tafsir",
-    language: "ar",
-    name: "التفسير الميسر",
-    author: "مجمع الملك فهد لطباعة المصحف الشريف",
-    source: `QuranEnc.com (${KEY})${version ? ` v${version}` : ""}`,
-  };
-
-  // Find or create the resource; keep its source (version) up to date
+  // Find the resource, or create it (safe to run again)
   const found = await supabase
     .from("resources")
     .select("id")
@@ -152,9 +116,10 @@ async function main() {
 
   let resourceId = found.data?.id;
   if (resourceId) {
+    // Existing resource (e.g. from QuranEnc): switch its source to Tanzil
     const { error } = await supabase
       .from("resources")
-      .update({ source: RESOURCE.source })
+      .update({ source: RESOURCE.source, author: RESOURCE.author })
       .eq("id", resourceId);
     if (error) fail(`Updating resource failed: ${error.message}`);
   } else {
@@ -191,9 +156,9 @@ async function main() {
     .select("ayah_id", { count: "exact", head: true })
     .eq("resource_id", resourceId);
   if (error || count !== TOTAL_AYAHS)
-    fail(`Database has ${count} tafsir rows, expected 6236.`);
+    fail(`Database has ${count} translated ayahs, expected 6236.`);
   console.log(
-    `\n✅ Done. ${count} ayahs with tafsir (${RESOURCE.name}${version ? ` v${version}` : ""}).`,
+    `\n✅ Done. ${count} ayahs with tafsir (${RESOURCE.name}, from Tanzil).`,
   );
 }
 

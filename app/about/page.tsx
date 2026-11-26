@@ -24,9 +24,9 @@ const SOURCES = [
   {
     title: "التفسير الميسر",
     detail: "مجمع الملك فهد لطباعة المصحف الشريف. منقول كما هو دون أي تعديل.",
-    source: "QuranEnc.com",
-    href: "https://quranenc.com/ar/browse/arabic_moyassar",
-    license: "وفق شروط QuranEnc",
+    source: "Tanzil Project",
+    href: "https://tanzil.net/trans/",
+    license: "للاستخدام غير التجاري",
   },
   {
     title: "التلاوات (آية بآية)",

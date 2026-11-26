@@ -87,6 +87,7 @@ Download from [tanzil.net](https://tanzil.net) into `data/tanzil/`:
 - `quran-uthmani.txt`: Uthmani text, *Text (with aya numbers)*
 - `quran-data.js`: metadata (right-click, then *Save link as*)
 - `en.sahih.txt`: Saheeh International, *Text (with aya numbers)*
+- `ar.muyassar.txt`: At-Tafsir Al-Muyassar, *Text (with aya numbers)*
 
 Then run the scripts. Each one validates everything, including 114 surahs, 6236 ayahs and the text encoding, before writing anything:
 
@@ -109,7 +110,7 @@ npm run dev
 |---|---|---|
 | Quran text (Uthmani) | [Tanzil Project](https://tanzil.net) | CC BY 3.0, verbatim, with attribution |
 | English translation | Saheeh International, via [Tanzil](https://tanzil.net/trans/) | Non-commercial use only |
-| At-Tafsir Al-Muyassar | King Fahd Complex, via [QuranEnc.com](https://quranenc.com) | QuranEnc terms: unmodified, credited, version cited |
+| At-Tafsir Al-Muyassar | King Fahd Complex, via [Tanzil](https://tanzil.net/trans/) | Non-commercial use only |
 | Verse-by-verse audio | [EveryAyah.com](https://everyayah.com) | |
 | Surah audio and ayah timings | [MP3Quran.net](https://mp3quran.net) | |
 

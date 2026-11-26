@@ -45,7 +45,8 @@ export default function RootLayout({
           English translation: Saheeh International, via Tanzil — non-commercial
           use
           <br />
-          At-Tafsir Al-Muyassar (King Fahd Complex), via QuranEnc.com
+          At-Tafsir Al-Muyassar (King Fahd Complex), via Tanzil — non-commercial
+          use
         </footer>
       </body>
     </html>
