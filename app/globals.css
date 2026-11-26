@@ -324,9 +324,6 @@ body,
   }
 }
 
-.reader[data-mode="mushaf"] .ayah.is-playing {
-  background: rgb(var(--accent-rgb) / 0.15);
-}
 .reader[data-mode="mushaf"] .ayah.is-playing .ayah-num {
   color: var(--color-accent);
 }
@@ -470,20 +467,36 @@ body:has(.reader) .site-footer {
   }
 }
 
-/* ---------- Mushaf: no outlines on multi-line ayahs ---------- */
-/* Rings drawn around each line fragment overlap the next line,
-   so mushaf mode uses background tint only */
-.reader[data-mode="mushaf"] .ayah:focus-visible {
+/* ---------- Mushaf highlight: a band per line, never touching neighbours ---------- */
+@property --hl {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+
+.reader[data-mode="mushaf"] .ayah {
+  --hl: transparent;
+  background: linear-gradient(var(--hl), var(--hl)) center / 100% 65% no-repeat;
   box-shadow: none;
-  background: rgb(var(--accent-rgb) / 0.12);
+  transition: --hl 0.3s;
+}
+.reader[data-mode="mushaf"] .ayah:hover {
+  --hl: rgb(var(--accent-rgb) / 0.08);
+}
+.reader[data-mode="mushaf"] .ayah:focus-visible {
+  --hl: rgb(var(--accent-rgb) / 0.12);
+  box-shadow: none;
+}
+.reader[data-mode="mushaf"] .ayah.is-playing {
+  --hl: rgb(var(--accent-rgb) / 0.15);
 }
 
 @keyframes target-flash-mushaf {
   0% {
-    background-color: rgb(var(--accent-rgb) / 0.3);
+    --hl: rgb(var(--accent-rgb) / 0.3);
   }
   100% {
-    background-color: transparent;
+    --hl: transparent;
   }
 }
 .reader[data-mode="mushaf"] .ayah.is-target {
