@@ -3,19 +3,31 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  DEFAULT_RECITER,
+  RECITERS,
+  everyAyahUrl,
+  getReciter,
+  type AudioInfo,
+  type Reciter,
+} from "@/lib/reciters";
 
 // Font sizes for the Quran text (rem)
 const SIZES = [1.5, 1.875, 2.25, 2.75, 3.25];
 type Mode = "mushaf" | "cards";
-type Prefs = { size: number; mode: Mode; translation: boolean };
-const DEFAULTS: Prefs = { size: 2, mode: "mushaf", translation: true };
+type Prefs = {
+  size: number;
+  mode: Mode;
+  translation: boolean;
+  reciter: string;
+};
+const DEFAULTS: Prefs = {
+  size: 2,
+  mode: "mushaf",
+  translation: true,
+  reciter: DEFAULT_RECITER,
+};
 const STORAGE_KEY = "reader-prefs";
-
-// Verse-by-verse recitation (one MP3 per ayah, named SSSAAA.mp3)
-const AUDIO_BASE = "https://everyayah.com/data/Alafasy_128kbps";
-const pad3 = (n: number) => String(n).padStart(3, "0");
-const audioUrl = (surah: number, ayah: number) =>
-  `${AUDIO_BASE}/${pad3(surah)}${pad3(ayah)}.mp3`;
 
 // ---------- Tiny preferences store backed by localStorage ----------
 const listeners = new Set<() => void>();
@@ -68,59 +80,91 @@ function parsePrefs(raw: string): Prefs {
         typeof saved?.translation === "boolean"
           ? saved.translation
           : DEFAULTS.translation,
+      reciter: RECITERS.some((r) => r.id === saved?.reciter)
+        ? saved.reciter
+        : DEFAULTS.reciter,
     };
   } catch {
     return DEFAULTS;
   }
 }
 
-// ---------- Component ----------
+// ---------- Playback session ----------
+// "ayah": EveryAyah, one file per ayah.
+// "file": mp3quran, one file per surah (with or without per-ayah timings).
+type Session =
+  | { kind: "ayah" }
+  | { kind: "file"; info: AudioInfo; stopAt: number | null };
 type AudioGraph = { ctx: AudioContext; analyser: AnalyserNode };
 
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "";
+  }
+};
+
+// ---------- Component ----------
 export function Reader({ children }: { children: React.ReactNode }) {
   const prefs = parsePrefs(
     useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot),
   );
   const update = (change: Partial<Prefs>) => savePrefs({ ...prefs, ...change });
 
-  // ---- Audio ----
-  // Click an ayah -> hear it. Play button -> continue ayah after ayah.
   const readerRef = useRef<HTMLDivElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Two players: one connected to the analyser (needs CORS), one plain fallback
+  const corsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const plainAudioRef = useRef<HTMLAudioElement | null>(null);
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+  const graphRef = useRef<AudioGraph | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const blockedHostsRef = useRef(new Set<string>()); // hosts that refused CORS
   const preloadRef = useRef<HTMLAudioElement | null>(null);
+
+  const sessionRef = useRef<Session | null>(null);
   const playingElRef = useRef<HTMLElement | null>(null);
   const continuousRef = useRef(false);
-  const graphRef = useRef<AudioGraph | null>(null); // live analyser for the visualizer
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const corsBlockedRef = useRef(false); // audio server refused cross-origin access
+  const retryRef = useRef<(() => void) | null>(null); // replays the last request after a CORS fallback
+  const requestIdRef = useRef(0); // ignores stale async results
+  const watchRef = useRef(0); // requestAnimationFrame id
+  const infoCacheRef = useRef(new Map<string, Promise<AudioInfo>>());
+  const noticeTimerRef = useRef(0);
+
   const [playing, setPlaying] = useState(false);
   const [continuous, setContinuous] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // ---- small helpers ----
+  function showNotice(message: string) {
+    setNotice(message);
+    window.clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => setNotice(null), 4500);
+  }
 
   function setContinuousMode(on: boolean) {
     continuousRef.current = on;
     setContinuous(on);
   }
 
-  function markPlaying(el: HTMLElement | null) {
+  function highlight(el: HTMLElement | null) {
+    if (playingElRef.current === el) return;
     playingElRef.current?.classList.remove("is-playing");
     el?.classList.add("is-playing");
     playingElRef.current = el;
-    setPlaying(el !== null);
   }
 
-  function stop() {
-    audioRef.current?.pause();
-    markPlaying(null);
-    setContinuousMode(false);
-  }
-
-  const urlFor = (el: HTMLElement) => {
-    const surah = Number(
-      el.closest<HTMLElement>("[data-surah]")?.dataset.surah,
+  // Read from the DOM so audio callbacks always see the current values
+  const currentReciter = (): Reciter =>
+    getReciter(readerRef.current?.dataset.reciter ?? DEFAULT_RECITER);
+  const currentSurah = () =>
+    Number(
+      readerRef.current?.querySelector<HTMLElement>("[data-surah]")?.dataset
+        .surah,
     );
-    const ayah = Number(el.dataset.ayah);
-    return surah && ayah ? audioUrl(surah, ayah) : null;
-  };
+  const ayahEl = (n: number) =>
+    readerRef.current?.querySelector<HTMLElement>(`[data-ayah="${n}"]`) ?? null;
 
   const nextAyah = (el: HTMLElement | null) => {
     let next = el?.nextElementSibling ?? null;
@@ -141,31 +185,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
     });
   }
 
-  function handleEnded() {
-    const next = continuousRef.current ? nextAyah(playingElRef.current) : null;
-    if (next) {
-      start(next);
-      keepInView(next);
-    } else {
-      markPlaying(null);
-      setContinuousMode(false);
-    }
-  }
-
-  function handleError(audio: HTMLAudioElement) {
-    // First failure with CORS on: the server may not allow cross-origin audio.
-    // Fall back to a plain player (visualizer switches to a simulated animation).
-    if (audio.crossOrigin && !corsBlockedRef.current) {
-      corsBlockedRef.current = true;
-      analyserRef.current = null;
-      audioRef.current = createAudio(false);
-      const el = playingElRef.current;
-      if (el) start(el);
-      return;
-    }
-    stop();
-  }
-
+  // ---- players ----
   function createAudio(withCors: boolean) {
     const audio = new Audio();
     if (withCors) audio.crossOrigin = "anonymous";
@@ -174,79 +194,269 @@ export function Reader({ children }: { children: React.ReactNode }) {
     return audio;
   }
 
-  // Connect the player to an analyser so the visualizer follows the reciter's voice
-  function connectAnalyser(audio: HTMLAudioElement) {
-    if (graphRef.current || corsBlockedRef.current) return;
-    try {
-      const ctx = new AudioContext();
-      const source = ctx.createMediaElementSource(audio);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 64;
-      analyser.smoothingTimeConstant = 0.75;
-      source.connect(analyser);
-      analyser.connect(ctx.destination);
-      graphRef.current = { ctx, analyser };
-      analyserRef.current = analyser;
-    } catch {
-      corsBlockedRef.current = true; // Web Audio unavailable: simulated animation
+  function getCorsAudio() {
+    if (!corsAudioRef.current) {
+      const audio = createAudio(true);
+      corsAudioRef.current = audio;
+      try {
+        const ctx = new AudioContext();
+        const source = ctx.createMediaElementSource(audio);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 64;
+        analyser.smoothingTimeConstant = 0.75;
+        source.connect(analyser);
+        analyser.connect(ctx.destination);
+        graphRef.current = { ctx, analyser };
+      } catch {
+        // Web Audio unavailable: the visualizer uses a simulated animation
+      }
     }
+    return corsAudioRef.current;
   }
 
-  function getAudio() {
-    if (!audioRef.current) {
-      audioRef.current = createAudio(!corsBlockedRef.current);
-      connectAnalyser(audioRef.current);
-    }
-    return audioRef.current;
+  function getPlainAudio() {
+    if (!plainAudioRef.current) plainAudioRef.current = createAudio(false);
+    return plainAudioRef.current;
   }
 
-  function start(el: HTMLElement) {
-    const url = urlFor(el);
-    if (!url) return;
-    const audio = getAudio();
+  // Pick the player for this URL and make it the active one
+  function pickAudio(url: string) {
+    const blocked = blockedHostsRef.current.has(hostOf(url));
+    const audio = blocked ? getPlainAudio() : getCorsAudio();
+    if (activeAudioRef.current && activeAudioRef.current !== audio)
+      activeAudioRef.current.pause();
+    activeAudioRef.current = audio;
+    analyserRef.current = !blocked
+      ? (graphRef.current?.analyser ?? null)
+      : null;
+    return audio;
+  }
+
+  function playUrl(url: string, startSeconds: number, retry: () => void) {
+    retryRef.current = retry;
+    const audio = pickAudio(url);
     graphRef.current?.ctx.resume();
-    audio.src = url;
-    markPlaying(el);
+
+    if (audio.src !== url) audio.src = url;
+    const seek = () => {
+      if (startSeconds > 0 || audio.currentTime > 0)
+        audio.currentTime = startSeconds;
+    };
+    if (audio.readyState >= 1) seek();
+    else audio.addEventListener("loadedmetadata", seek, { once: true });
+
+    setPlaying(true);
     audio.play().catch((err: unknown) => {
       // Only a browser block (autoplay policy) stops playback.
       // Load errors are handled by the "error" listener; AbortError just means the source changed.
       if (err instanceof DOMException && err.name === "NotAllowedError") stop();
     });
+  }
+
+  function stop() {
+    requestIdRef.current++;
+    activeAudioRef.current?.pause();
+    cancelAnimationFrame(watchRef.current);
+    sessionRef.current = null;
+    highlight(null);
+    setPlaying(false);
+    setContinuousMode(false);
+  }
+
+  function handleError(audio: HTMLAudioElement) {
+    // The CORS player failed: the server may refuse cross-origin access.
+    // Remember the host and replay with the plain player (no live visualizer for it).
+    if (audio === corsAudioRef.current) {
+      const host = hostOf(audio.src);
+      if (host && !blockedHostsRef.current.has(host)) {
+        blockedHostsRef.current.add(host);
+        retryRef.current?.();
+        return;
+      }
+    }
+    stop();
+    showNotice("تعذّر تشغيل التلاوة");
+  }
+
+  function handleEnded() {
+    const session = sessionRef.current;
+    if (session?.kind === "ayah" && continuousRef.current) {
+      const next = nextAyah(playingElRef.current);
+      if (next) {
+        startEveryAyah(next);
+        keepInView(next);
+        return;
+      }
+    }
+    stop();
+  }
+
+  // ---- EveryAyah: one file per ayah ----
+  function startEveryAyah(el: HTMLElement) {
+    const reciter = currentReciter();
+    if (reciter.kind !== "ayah") return;
+    const surah = currentSurah();
+    const ayah = Number(el.dataset.ayah);
+    if (!surah || !ayah) return;
+
+    sessionRef.current = { kind: "ayah" };
+    cancelAnimationFrame(watchRef.current);
+    highlight(el);
+    const url = everyAyahUrl(reciter.folder, surah, ayah);
+    playUrl(url, 0, () => startEveryAyah(el));
 
     // Warm the browser cache with the next ayah to avoid a gap
     const next = continuousRef.current ? nextAyah(el) : null;
-    const nextUrl = next && urlFor(next);
-    if (nextUrl) {
+    if (next) {
+      const nextUrl = everyAyahUrl(
+        reciter.folder,
+        surah,
+        Number(next.dataset.ayah),
+      );
       const preload = new Audio();
       // Must match the main player, or the cached copy can't be reused with CORS
-      if (!corsBlockedRef.current) preload.crossOrigin = "anonymous";
+      if (!blockedHostsRef.current.has(hostOf(nextUrl)))
+        preload.crossOrigin = "anonymous";
       preload.preload = "auto";
       preload.src = nextUrl;
       preloadRef.current = preload;
     }
   }
 
-  function playAyah(el: HTMLElement) {
-    // Same ayah clicked again while playing -> stop
-    if (playingElRef.current === el) {
-      stop();
+  // ---- mp3quran: one file per surah ----
+  function loadInfo(reciterId: string, surah: number) {
+    const key = `${reciterId}:${surah}`;
+    let info = infoCacheRef.current.get(key);
+    if (!info) {
+      const unavailable = (): AudioInfo => {
+        infoCacheRef.current.delete(key); // don't remember failures: retry next time
+        return { available: false };
+      };
+      info = fetch(
+        `/api/audio-info?reciter=${encodeURIComponent(reciterId)}&surah=${surah}`,
+      )
+        .then((res) =>
+          res.ok ? (res.json() as Promise<AudioInfo>) : unavailable(),
+        )
+        .catch(unavailable);
+      infoCacheRef.current.set(key, info);
+    }
+    return info;
+  }
+
+  function startFile(
+    info: AudioInfo,
+    startMs: number,
+    stopAt: number | null,
+    el: HTMLElement | null,
+  ) {
+    if (!info.url) return;
+    sessionRef.current = { kind: "file", info, stopAt };
+    highlight(el);
+    playUrl(info.url, startMs / 1000, () =>
+      startFile(info, startMs, stopAt, el),
+    );
+    watchFile();
+  }
+
+  // Follow the playback position: highlight the current ayah, stop after a single ayah
+  function watchFile() {
+    cancelAnimationFrame(watchRef.current);
+    const tick = () => {
+      const session = sessionRef.current;
+      const audio = activeAudioRef.current;
+      if (!session || session.kind !== "file" || !audio) return;
+
+      const ms = audio.currentTime * 1000;
+      if (session.stopAt !== null && ms >= session.stopAt) {
+        stop();
+        return;
+      }
+      const timing = session.info.timings?.find(
+        (t) => ms >= t.start && ms < t.end,
+      );
+      if (timing) {
+        const el = ayahEl(timing.ayah);
+        if (el && el !== playingElRef.current) {
+          highlight(el);
+          if (continuousRef.current) keepInView(el);
+        }
+      }
+      watchRef.current = requestAnimationFrame(tick);
+    };
+    watchRef.current = requestAnimationFrame(tick);
+  }
+
+  // ---- entry points ----
+  async function play(
+    el: HTMLElement,
+    fromStart: boolean,
+    continuousPlay: boolean,
+  ) {
+    const reciter = currentReciter();
+    setNotice(null);
+
+    if (reciter.kind === "ayah") {
+      requestIdRef.current++;
+      setContinuousMode(continuousPlay);
+      startEveryAyah(el);
+      if (continuousPlay) keepInView(el);
       return;
     }
-    start(el);
+
+    // Whole-surah reciters have no ayah timings: only the play button works
+    if (reciter.kind === "surah" && !fromStart) {
+      showNotice(`${reciter.name}: متوفر بالسورة كاملة فقط، استعمل زر التشغيل`);
+      return;
+    }
+
+    const requestId = ++requestIdRef.current;
+    const surah = currentSurah();
+    const info = await loadInfo(reciter.id, surah);
+    if (requestId !== requestIdRef.current) return; // another click happened meanwhile
+
+    if (!info.available || !info.url) {
+      stop();
+      showNotice(`هذه السورة غير متوفرة بصوت ${reciter.name}`);
+      return;
+    }
+
+    setContinuousMode(continuousPlay);
+
+    if (reciter.kind === "surah" || fromStart) {
+      startFile(info, 0, null, null); // whole surah from the beginning (includes the basmala)
+      return;
+    }
+
+    const timing = info.timings?.find(
+      (t) => t.ayah === Number(el.dataset.ayah),
+    );
+    if (!timing) {
+      showNotice("توقيت هذه الآية غير متوفر");
+      return;
+    }
+    startFile(info, timing.start, continuousPlay ? null : timing.end, el);
+    if (continuousPlay) keepInView(el);
   }
 
   function playSurah() {
     const first = readerRef.current?.querySelector<HTMLElement>("[data-ayah]");
-    if (!first) return;
-    setContinuousMode(true);
-    start(first);
-    keepInView(first);
+    if (first) play(first, true, true);
+  }
+
+  function handleAyah(el: HTMLElement) {
+    // Same ayah clicked again while playing -> stop
+    if (playing && playingElRef.current === el) {
+      stop();
+      return;
+    }
+    play(el, false, continuousRef.current);
   }
 
   function handleClick(e: React.MouseEvent<HTMLDivElement>) {
     if (window.getSelection()?.toString()) return; // user is selecting text, not clicking
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-ayah]");
-    if (el) playAyah(el);
+    if (el) handleAyah(el);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
@@ -254,16 +464,22 @@ export function Reader({ children }: { children: React.ReactNode }) {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-ayah]");
     if (!el) return;
     e.preventDefault();
-    playAyah(el);
+    handleAyah(el);
   }
 
-  // Stop the audio and release the audio engine when leaving the page
+  // Stop everything when leaving the page
   useEffect(() => {
-    const audioHolder = audioRef;
-    const graphHolder = graphRef;
+    const cors = corsAudioRef;
+    const plain = plainAudioRef;
+    const graph = graphRef;
+    const watch = watchRef;
+    const timer = noticeTimerRef;
     return () => {
-      audioHolder.current?.pause();
-      graphHolder.current?.ctx.close();
+      cors.current?.pause();
+      plain.current?.pause();
+      graph.current?.ctx.close();
+      cancelAnimationFrame(watch.current);
+      window.clearTimeout(timer.current);
     };
   }, []);
 
@@ -274,6 +490,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
         className="reader"
         data-mode={prefs.mode}
         data-translation={prefs.translation ? "on" : "off"}
+        data-reciter={prefs.reciter}
         style={
           { "--quran-size": `${SIZES[prefs.size]}rem` } as React.CSSProperties
         }
@@ -284,22 +501,28 @@ export function Reader({ children }: { children: React.ReactNode }) {
 
       {/* Floating controls */}
       <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-3">
+        {notice && (
+          <p
+            role="status"
+            className="rounded-full border border-white/15 bg-black px-4 py-2 font-arabic text-xs text-white/80">
+            {notice}
+          </p>
+        )}
+
         {/* Play button with voice visualizer */}
         <div className="flex items-center gap-3">
           <Visualizer analyserRef={analyserRef} active={playing} side="start" />
-          <div className="relative">
-            <button
-              type="button"
-              onClick={playing ? stop : playSurah}
-              aria-label={playing ? "إيقاف التلاوة" : "تشغيل السورة"}
-              className={`glass grid h-16 w-16 place-items-center rounded-full transition duration-300 hover:scale-105 ${
-                playing
-                  ? "text-accent shadow-[0_0_40px_rgba(56,189,248,0.35)]"
-                  : "text-white"
-              }`}>
-              {playing ? <StopIcon /> : <PlayIcon />}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={playing ? stop : playSurah}
+            aria-label={playing ? "إيقاف التلاوة" : "تشغيل السورة"}
+            className={`glass grid h-16 w-16 place-items-center rounded-full transition duration-300 hover:scale-105 ${
+              playing
+                ? "text-accent shadow-[0_0_40px_rgba(56,189,248,0.35)]"
+                : "text-white"
+            }`}>
+            {playing ? <StopIcon /> : <PlayIcon />}
+          </button>
           <Visualizer analyserRef={analyserRef} active={playing} side="end" />
         </div>
         {continuous && (
@@ -308,6 +531,14 @@ export function Reader({ children }: { children: React.ReactNode }) {
 
         {/* Toolbar */}
         <div className="glass flex items-center gap-1 rounded-full p-1.5 text-sm">
+          <ReciterPicker
+            value={prefs.reciter}
+            onChange={(reciter) => {
+              stop();
+              update({ reciter });
+            }}
+          />
+          <span aria-hidden className="mx-1 h-5 w-px bg-white/15" />
           <ToolButton
             active={prefs.mode === "mushaf"}
             onClick={() => update({ mode: "mushaf" })}>
@@ -409,6 +640,94 @@ function Visualizer({
           style={{ transform: "scaleY(0.12)", opacity: 0.35 }}
         />
       ))}
+    </div>
+  );
+}
+
+// ---------- Reciter picker ----------
+function ReciterPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const current = getReciter(value);
+
+  // Close on outside click or Escape
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!boxRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return (
+    <div ref={boxRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`القارئ: ${current.name}`}
+        className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 font-arabic transition duration-300 hover:text-accent ${
+          open ? "text-accent" : "text-white/70"
+        }`}>
+        {current.short}
+        <span
+          aria-hidden
+          className={`text-[10px] transition ${open ? "rotate-180" : ""}`}>
+          ▾
+        </span>
+      </button>
+
+      {open && (
+        <div className="absolute bottom-full left-1/2 mb-4 w-64 -translate-x-1/2">
+          <ul
+            role="listbox"
+            aria-label="اختيار القارئ"
+            className="reciter-menu max-h-[50vh] overflow-y-auto rounded-2xl border border-white/15 bg-black p-1.5 shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
+            {RECITERS.map((r) => (
+              <li key={r.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={r.id === value}
+                  onClick={() => {
+                    onChange(r.id);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 font-arabic text-sm transition ${
+                    r.id === value
+                      ? "bg-white/10 text-accent"
+                      : "text-white/70 hover:bg-white/5 hover:text-white"
+                  }`}>
+                  <span>{r.name}</span>
+                  <span className="flex items-center gap-2">
+                    {r.kind === "surah" && (
+                      <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-white/40">
+                        سورة كاملة
+                      </span>
+                    )}
+                    {r.id === value && <span aria-hidden>✓</span>}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

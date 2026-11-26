@@ -265,3 +265,9 @@
   border-color: rgba(56, 189, 248, 0.8);
   animation: playing-pulse 1.6s ease-in-out infinite;
 }
+
+/* ---------- Reciter menu scrollbar ---------- */
+.reciter-menu {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
