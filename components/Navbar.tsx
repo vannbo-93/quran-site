@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { SearchIcon } from "@/components/SearchBox";
 import { MenuButton } from "@/components/MenuButton";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function Navbar() {
   return (
@@ -37,6 +38,7 @@ export function Navbar() {
             className="grid h-9 w-9 place-items-center rounded-md border border-white/15 bg-white/10 transition hover:bg-white/20 hover:text-accent">
             <SearchIcon className="h-4 w-4" />
           </Link>
+          <ThemeToggle />
           <MenuButton />
         </div>
       </div>
