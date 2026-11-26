@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { getSurahs } from "@/lib/quran";
+import { SearchBox } from "@/components/SearchBox";
 
 export default async function HomePage() {
   const surahs = await getSurahs();
@@ -10,6 +11,9 @@ export default async function HomePage() {
     <main className="mx-auto max-w-7xl px-4 sm:px-6">
       {/* Title: no frame, accent glow only on hover */}
       <section className="flex justify-center pt-12 pb-10">
+        <div className="mb-14">
+          <SearchBox />
+        </div>
         <div className="group relative cursor-default px-6 text-center">
           <div
             aria-hidden

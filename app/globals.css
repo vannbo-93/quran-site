@@ -271,3 +271,20 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
+
+/* ---------- Deep link: flash the target ayah ---------- */
+@keyframes target-flash {
+  0% {
+    background-color: rgba(56, 189, 248, 0.22);
+    box-shadow:
+      0 0 0 2px rgba(56, 189, 248, 0.9),
+      0 0 50px rgba(56, 189, 248, 0.45);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+  }
+}
+.reader .ayah.is-target {
+  animation: target-flash 2.5s ease-out;
+}
