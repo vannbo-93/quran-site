@@ -91,11 +91,15 @@ async function SurahContent({ params }: { params: Params }) {
           </div>
         )}
 
-        <div className="quran-text font-quran">
+        <div className="quran-text font-quran" data-surah={surahId}>
           {ayahs.map((a) => (
             <span
               key={a.id}
               id={`ayah-${a.ayah_number}`}
+              data-ayah={a.ayah_number}
+              role="button"
+              tabIndex={0}
+              aria-label={`تشغيل الآية ${a.ayah_number}`}
               className="ayah glass">
               <span className="ayah-body">
                 <span className="ayah-text">

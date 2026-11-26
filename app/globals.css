@@ -217,3 +217,51 @@
 .reader[data-mode="cards"] .ayah:hover .ayah-translation {
   color: rgba(255, 255, 255, 0.75);
 }
+
+/* ---------- Audio: playing ayah ---------- */
+.reader .ayah {
+  cursor: pointer;
+  outline: none;
+}
+.reader .ayah:focus-visible {
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.6);
+}
+
+@keyframes playing-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(56, 189, 248, 0);
+  }
+}
+
+/* Mushaf mode */
+.reader[data-mode="mushaf"] .ayah.is-playing {
+  background: rgba(56, 189, 248, 0.15);
+}
+.reader[data-mode="mushaf"] .ayah.is-playing .ayah-num {
+  color: #38bdf8;
+}
+
+/* Cards mode */
+.reader[data-mode="cards"] .ayah.is-playing {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 40px rgba(56, 189, 248, 0.3);
+}
+.reader[data-mode="cards"] .ayah.is-playing::before {
+  background: linear-gradient(
+    135deg,
+    rgba(56, 189, 248, 0.9),
+    rgba(56, 189, 248, 0.15) 40%,
+    rgba(255, 255, 255, 0.03) 65%,
+    rgba(56, 189, 248, 0.5)
+  );
+}
+.reader[data-mode="cards"] .ayah.is-playing .ayah-num {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.8);
+  animation: playing-pulse 1.6s ease-in-out infinite;
+}
