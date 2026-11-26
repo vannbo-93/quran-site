@@ -24,6 +24,7 @@ type Prefs = {
   reciter: string;
   volume: number; // 0..1
   muted: boolean;
+  speed: number; // playback rate
 };
 const DEFAULTS: Prefs = {
   size: 2,
@@ -33,7 +34,13 @@ const DEFAULTS: Prefs = {
   reciter: DEFAULT_RECITER,
   volume: 1,
   muted: false,
+  speed: 1,
 };
+
+// Recitation speed range (pitch is preserved by the browser)
+const SPEED_MIN = 0.5;
+const SPEED_MAX = 1.75;
+const SPEED_STEP = 0.05;
 const STORAGE_KEY = "reader-prefs";
 
 // ---------- Tiny preferences store backed by localStorage ----------
@@ -99,6 +106,12 @@ function parsePrefs(raw: string): Prefs {
           ? saved.volume
           : DEFAULTS.volume,
       muted: typeof saved?.muted === "boolean" ? saved.muted : DEFAULTS.muted,
+      speed:
+        typeof saved?.speed === "number" &&
+        saved.speed >= SPEED_MIN &&
+        saved.speed <= SPEED_MAX
+          ? saved.speed
+          : DEFAULTS.speed,
     };
   } catch {
     return DEFAULTS;
@@ -141,6 +154,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
     savePrefs(next);
     if ("volume" in change || "muted" in change)
       applyVolume(next.muted ? 0 : next.volume);
+    if ("speed" in change) applySpeed(next.speed);
   };
 
   const readerRef = useRef<HTMLDivElement | null>(null);
@@ -227,6 +241,24 @@ export function Reader({ children }: { children: React.ReactNode }) {
     return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1;
   };
 
+  // Speed is read from the DOM too, for the same reason
+  const currentSpeed = () => {
+    const v = Number(readerRef.current?.dataset.speed);
+    return Number.isFinite(v) && v >= SPEED_MIN && v <= SPEED_MAX ? v : 1;
+  };
+
+  function setRate(audio: HTMLAudioElement, rate: number) {
+    // defaultPlaybackRate survives a change of src; playbackRate alone is reset on each new file
+    audio.defaultPlaybackRate = rate;
+    audio.playbackRate = rate;
+    audio.preservesPitch = true; // keep the reciter's voice natural
+  }
+
+  function applySpeed(rate: number) {
+    if (corsAudioRef.current) setRate(corsAudioRef.current, rate);
+    if (plainAudioRef.current) setRate(plainAudioRef.current, rate);
+  }
+
   function applyVolume(v: number) {
     // CORS player: volume goes through the gain node (after the analyser, so the bars keep moving)
     if (graphRef.current) graphRef.current.gain.gain.value = v;
@@ -256,6 +288,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
   function createAudio(withCors: boolean) {
     const audio = new Audio();
     if (withCors) audio.crossOrigin = "anonymous";
+    setRate(audio, currentSpeed());
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("error", () => handleError(audio));
     return audio;
@@ -311,6 +344,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
     graphRef.current?.ctx.resume();
 
     if (audio.src !== url) audio.src = url;
+    setRate(audio, currentSpeed());
     const seek = () => {
       if (startSeconds > 0 || audio.currentTime > 0)
         audio.currentTime = startSeconds;
@@ -666,6 +700,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
         data-tafsir={prefs.tafsir ? "on" : "off"}
         data-reciter={prefs.reciter}
         data-volume={prefs.muted ? 0 : prefs.volume}
+        data-speed={prefs.speed}
         style={
           { "--quran-size": `${SIZES[prefs.size]}rem` } as React.CSSProperties
         }
@@ -741,15 +776,15 @@ export function Reader({ children }: { children: React.ReactNode }) {
 
           {/* Phones: one button opens the display settings */}
           <ToolButton
-            className="md:hidden"
+            className="lg:hidden"
             active={menu === "display"}
             onClick={() => toggleMenu("display")}
             label="إعدادات العرض">
             Aa
           </ToolButton>
 
-          {/* Tablets (768px+) and desktop: everything inline */}
-          <div className="hidden items-center gap-1 md:flex">
+          {/* Large screens (1024px+): everything inline */}
+          <div className="hidden items-center gap-1 lg:flex">
             <ToolButton
               active={prefs.mode === "mushaf"}
               onClick={() => update({ mode: "mushaf" })}>
@@ -776,6 +811,8 @@ export function Reader({ children }: { children: React.ReactNode }) {
             )}
             <span aria-hidden className="mx-1 h-5 w-px bg-white/15" />
             <VolumeControl prefs={prefs} update={update} />
+            <span aria-hidden className="mx-1 h-5 w-px bg-white/15" />
+            <SpeedControl prefs={prefs} update={update} />
             <span aria-hidden className="mx-1 h-5 w-px bg-white/15" />
             <ToolButton
               label="تكبير الخط"
@@ -965,6 +1002,10 @@ function DisplaySettings({
         <VolumeControl prefs={prefs} update={update} />
       </SettingRow>
 
+      <SettingRow label="السرعة">
+        <SpeedControl prefs={prefs} update={update} />
+      </SettingRow>
+
       <SettingRow label="حجم الخط">
         <ToolButton
           label="تصغير الخط"
@@ -1030,6 +1071,44 @@ function VolumeControl({
             "--fill": `${(prefs.muted ? 0 : prefs.volume) * 100}%`,
           } as React.CSSProperties
         }
+      />
+    </div>
+  );
+}
+
+// ---------- Speed ----------
+function SpeedControl({
+  prefs,
+  update,
+}: {
+  prefs: Prefs;
+  update: (change: Partial<Prefs>) => void;
+}) {
+  const fill = ((prefs.speed - SPEED_MIN) / (SPEED_MAX - SPEED_MIN)) * 100;
+  return (
+    <div dir="ltr" className="flex items-center gap-2 px-2">
+      <button
+        type="button"
+        onClick={() => update({ speed: 1 })}
+        title="السرعة العادية"
+        aria-label={`سرعة التلاوة ${prefs.speed.toFixed(2)}، اضغط للعودة إلى السرعة العادية`}
+        className={`w-12 rounded-full py-1 text-center text-xs tabular-nums transition hover:text-accent ${
+          prefs.speed === 1 ? "text-white/50" : "text-accent"
+        }`}>
+        {Number(prefs.speed.toFixed(2))}×
+      </button>
+      <input
+        type="range"
+        min={SPEED_MIN}
+        max={SPEED_MAX}
+        step={SPEED_STEP}
+        value={prefs.speed}
+        onChange={(e) =>
+          update({ speed: Math.round(Number(e.target.value) * 100) / 100 })
+        }
+        aria-label="سرعة التلاوة"
+        className="volume-slider w-24"
+        style={{ "--fill": `${fill}%` } as React.CSSProperties}
       />
     </div>
   );
