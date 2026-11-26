@@ -1,6 +1,6 @@
 /** @format */
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Navbar } from "@/components/Navbar";
 import { arabic, quranFont, sans, serif } from "@/lib/fonts";
 import "./globals.css";
@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: "القرآن الكريم",
   description: "اقرأ القرآن الكريم بالرسم العثماني",
   other: { "darkreader-lock": "true" }, // site is already dark: tell Dark Reader to stay off
+};
+
+export const viewport: Viewport = {
+  viewportFit: "cover", // lets the controls avoid the iPhone home indicator
 };
 
 export default function RootLayout({

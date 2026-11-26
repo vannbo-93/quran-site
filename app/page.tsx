@@ -7,8 +7,8 @@ export default async function HomePage() {
   const surahs = await getSurahs();
 
   return (
-    <main className="mx-auto max-w-7xl px-6">
-      {/* Title: no frame, orange glow only on hover */}
+    <main className="mx-auto max-w-7xl px-4 sm:px-6">
+      {/* Title: no frame, accent glow only on hover */}
       <section className="flex justify-center pt-12 pb-10">
         <div className="group relative cursor-default px-6 text-center">
           <div
@@ -42,7 +42,7 @@ export default async function HomePage() {
           <li key={s.id}>
             <Link
               href={`/surah/${s.id}`}
-              className="glass group block overflow-hidden rounded-2xl p-5 transition duration-300 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(255,90,31,0.25)]">
+              className="glass group block overflow-hidden rounded-2xl p-5 transition duration-300 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(56,189,248,0.25)]">
               {/* glow that appears on hover */}
               <span
                 aria-hidden

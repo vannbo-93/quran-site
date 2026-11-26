@@ -136,6 +136,29 @@ export function Reader({ children }: { children: React.ReactNode }) {
   const [continuous, setContinuous] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // Popover menus above the toolbar
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [menu, setMenu] = useState<null | "reciter" | "display">(null);
+  const toggleMenu = (name: "reciter" | "display") =>
+    setMenu((m) => (m === name ? null : name));
+
+  // Close menus on outside click or Escape
+  useEffect(() => {
+    if (!menu) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!toolbarRef.current?.contains(e.target as Node)) setMenu(null);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menu]);
+
   // ---- small helpers ----
   function showNotice(message: string) {
     setNotice(message);
@@ -500,7 +523,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Floating controls */}
-      <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-3">
+      <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-3">
         {notice && (
           <p
             role="status"
@@ -529,46 +552,83 @@ export function Reader({ children }: { children: React.ReactNode }) {
           <p className="font-arabic text-xs text-white/40">تشغيل السورة</p>
         )}
 
-        {/* Toolbar */}
-        <div className="glass flex items-center gap-1 rounded-full p-1.5 text-sm">
-          <ReciterPicker
-            value={prefs.reciter}
-            onChange={(reciter) => {
-              stop();
-              update({ reciter });
-            }}
-          />
-          <span aria-hidden className="mx-1 h-5 w-px bg-white/15" />
-          <ToolButton
-            active={prefs.mode === "mushaf"}
-            onClick={() => update({ mode: "mushaf" })}>
-            مصحف
-          </ToolButton>
-          <ToolButton
-            active={prefs.mode === "cards"}
-            onClick={() => update({ mode: "cards" })}>
-            بطاقات
-          </ToolButton>
-          {prefs.mode === "cards" && (
-            <ToolButton
-              active={prefs.translation}
-              onClick={() => update({ translation: !prefs.translation })}>
-              ترجمة
-            </ToolButton>
+        {/* Toolbar: full on tablets/desktop, compact on phones */}
+        <div
+          ref={toolbarRef}
+          className="glass flex items-center gap-1 rounded-full p-1.5 text-sm">
+          {menu === "reciter" && (
+            <Panel>
+              <ReciterList
+                value={prefs.reciter}
+                onChange={(reciter) => {
+                  stop();
+                  update({ reciter });
+                  setMenu(null);
+                }}
+              />
+            </Panel>
           )}
+          {menu === "display" && (
+            <Panel>
+              <DisplaySettings prefs={prefs} update={update} />
+            </Panel>
+          )}
+
+          <ToolButton
+            active={menu === "reciter"}
+            onClick={() => toggleMenu("reciter")}
+            label={`القارئ: ${getReciter(prefs.reciter).name}`}>
+            {getReciter(prefs.reciter).short}
+            <span
+              aria-hidden
+              className={`ms-1.5 inline-block text-[10px] transition ${menu === "reciter" ? "rotate-180" : ""}`}>
+              ▾
+            </span>
+          </ToolButton>
           <span aria-hidden className="mx-1 h-5 w-px bg-white/15" />
+
+          {/* Phones: one button opens the display settings */}
           <ToolButton
-            label="تكبير الخط"
-            disabled={prefs.size === SIZES.length - 1}
-            onClick={() => update({ size: prefs.size + 1 })}>
-            A+
+            className="sm:hidden"
+            active={menu === "display"}
+            onClick={() => toggleMenu("display")}
+            label="إعدادات العرض">
+            Aa
           </ToolButton>
-          <ToolButton
-            label="تصغير الخط"
-            disabled={prefs.size === 0}
-            onClick={() => update({ size: prefs.size - 1 })}>
-            A−
-          </ToolButton>
+
+          {/* Tablets and desktop: everything inline */}
+          <div className="hidden items-center gap-1 sm:flex">
+            <ToolButton
+              active={prefs.mode === "mushaf"}
+              onClick={() => update({ mode: "mushaf" })}>
+              مصحف
+            </ToolButton>
+            <ToolButton
+              active={prefs.mode === "cards"}
+              onClick={() => update({ mode: "cards" })}>
+              بطاقات
+            </ToolButton>
+            {prefs.mode === "cards" && (
+              <ToolButton
+                active={prefs.translation}
+                onClick={() => update({ translation: !prefs.translation })}>
+                ترجمة
+              </ToolButton>
+            )}
+            <span aria-hidden className="mx-1 h-5 w-px bg-white/15" />
+            <ToolButton
+              label="تكبير الخط"
+              disabled={prefs.size === SIZES.length - 1}
+              onClick={() => update({ size: prefs.size + 1 })}>
+              A+
+            </ToolButton>
+            <ToolButton
+              label="تصغير الخط"
+              disabled={prefs.size === 0}
+              onClick={() => update({ size: prefs.size - 1 })}>
+              A−
+            </ToolButton>
+          </div>
         </div>
       </div>
     </>
@@ -644,90 +704,123 @@ function Visualizer({
   );
 }
 
-// ---------- Reciter picker ----------
-function ReciterPicker({
+// ---------- Menus ----------
+// Positioned from the toolbar (centered), so it never overflows a phone screen.
+// The outer element positions it; .glass would override "absolute" on the same element.
+function Panel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="absolute bottom-full left-1/2 mb-4 w-[min(18rem,calc(100vw-2rem))] -translate-x-1/2">
+      <div className="rounded-2xl border border-white/15 bg-black p-1.5 shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ReciterList({
   value,
   onChange,
 }: {
   value: string;
   onChange: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const boxRef = useRef<HTMLDivElement | null>(null);
-  const current = getReciter(value);
-
-  // Close on outside click or Escape
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (!boxRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
   return (
-    <div ref={boxRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={`القارئ: ${current.name}`}
-        className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 font-arabic transition duration-300 hover:text-accent ${
-          open ? "text-accent" : "text-white/70"
-        }`}>
-        {current.short}
-        <span
-          aria-hidden
-          className={`text-[10px] transition ${open ? "rotate-180" : ""}`}>
-          ▾
-        </span>
-      </button>
+    <ul
+      role="listbox"
+      aria-label="اختيار القارئ"
+      className="reciter-menu max-h-[50vh] overflow-y-auto">
+      {RECITERS.map((r) => (
+        <li key={r.id}>
+          <button
+            type="button"
+            role="option"
+            aria-selected={r.id === value}
+            onClick={() => onChange(r.id)}
+            className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 font-arabic text-sm transition ${
+              r.id === value
+                ? "bg-white/10 text-accent"
+                : "text-white/70 hover:bg-white/5 hover:text-white"
+            }`}>
+            <span>{r.name}</span>
+            <span className="flex items-center gap-2">
+              {r.kind === "surah" && (
+                <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-white/40">
+                  سورة كاملة
+                </span>
+              )}
+              {r.id === value && <span aria-hidden>✓</span>}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
-      {open && (
-        <div className="absolute bottom-full left-1/2 mb-4 w-64 -translate-x-1/2">
-          <ul
-            role="listbox"
-            aria-label="اختيار القارئ"
-            className="reciter-menu max-h-[50vh] overflow-y-auto rounded-2xl border border-white/15 bg-black p-1.5 shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
-            {RECITERS.map((r) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={r.id === value}
-                  onClick={() => {
-                    onChange(r.id);
-                    setOpen(false);
-                  }}
-                  className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 font-arabic text-sm transition ${
-                    r.id === value
-                      ? "bg-white/10 text-accent"
-                      : "text-white/70 hover:bg-white/5 hover:text-white"
-                  }`}>
-                  <span>{r.name}</span>
-                  <span className="flex items-center gap-2">
-                    {r.kind === "surah" && (
-                      <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] text-white/40">
-                        سورة كاملة
-                      </span>
-                    )}
-                    {r.id === value && <span aria-hidden>✓</span>}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+function DisplaySettings({
+  prefs,
+  update,
+}: {
+  prefs: Prefs;
+  update: (change: Partial<Prefs>) => void;
+}) {
+  return (
+    <div className="space-y-1 p-1 font-arabic text-sm">
+      <SettingRow label="العرض">
+        <ToolButton
+          active={prefs.mode === "mushaf"}
+          onClick={() => update({ mode: "mushaf" })}>
+          مصحف
+        </ToolButton>
+        <ToolButton
+          active={prefs.mode === "cards"}
+          onClick={() => update({ mode: "cards" })}>
+          بطاقات
+        </ToolButton>
+      </SettingRow>
+
+      {prefs.mode === "cards" && (
+        <SettingRow label="الترجمة">
+          <ToolButton
+            active={prefs.translation}
+            onClick={() => update({ translation: !prefs.translation })}>
+            {prefs.translation ? "ظاهرة" : "مخفية"}
+          </ToolButton>
+        </SettingRow>
       )}
+
+      <SettingRow label="حجم الخط">
+        <ToolButton
+          label="تصغير الخط"
+          disabled={prefs.size === 0}
+          onClick={() => update({ size: prefs.size - 1 })}>
+          A−
+        </ToolButton>
+        <span className="w-8 text-center tabular-nums text-white/60">
+          {prefs.size + 1}
+        </span>
+        <ToolButton
+          label="تكبير الخط"
+          disabled={prefs.size === SIZES.length - 1}
+          onClick={() => update({ size: prefs.size + 1 })}>
+          A+
+        </ToolButton>
+      </SettingRow>
+    </div>
+  );
+}
+
+function SettingRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl px-2 py-1.5">
+      <span className="text-white/50">{label}</span>
+      <div className="flex items-center gap-1">{children}</div>
     </div>
   );
 }
@@ -757,12 +850,14 @@ function ToolButton({
   active = false,
   disabled = false,
   label,
+  className = "",
 }: {
   children: React.ReactNode;
   onClick: () => void;
   active?: boolean;
   disabled?: boolean;
   label?: string;
+  className?: string;
 }) {
   return (
     <button
@@ -771,11 +866,11 @@ function ToolButton({
       disabled={disabled}
       aria-label={label}
       aria-pressed={label ? undefined : active}
-      className={`rounded-full px-4 py-1.5 font-arabic transition duration-300 disabled:opacity-30 ${
+      className={`whitespace-nowrap rounded-full px-4 py-1.5 font-arabic transition duration-300 disabled:opacity-30 ${
         active
           ? "bg-white/15 text-white"
           : "text-white/50 hover:text-accent enabled:hover:bg-white/5"
-      }`}>
+      } ${className}`}>
       {children}
     </button>
   );
