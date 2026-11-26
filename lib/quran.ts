@@ -16,6 +16,7 @@ export type Ayah = {
   ayah_number: number;
   text_uthmani: string;
   translation: string | null;
+  tafsir: string | null;
 };
 
 // The Quran text never changes, so cache it for as long as possible
@@ -30,31 +31,43 @@ export async function getSurahs(): Promise<Surah[]> {
   return data;
 }
 
-const TRANSLATION_NAME = "Saheeh International";
-
-export async function getTranslationId(): Promise<number | null> {
+// id of a translation / tafsir in the "resources" table (null if not imported yet)
+async function getResourceId(
+  kind: "translation" | "tafsir",
+  name: string,
+): Promise<number | null> {
   "use cache";
   cacheLife("max");
   const { data, error } = await supabasePublic
     .from("resources")
     .select("id")
-    .eq("kind", "translation")
-    .eq("name", TRANSLATION_NAME)
+    .eq("kind", kind)
+    .eq("name", name)
     .maybeSingle();
   if (error) throw new Error(error.message);
   return data?.id ?? null;
 }
 
+export const getTranslationId = () =>
+  getResourceId("translation", "Saheeh International");
+export const getTafsirId = () => getResourceId("tafsir", "التفسير الميسر");
+
 export async function getSurahWithAyahs(id: number) {
   "use cache";
   cacheLife("max");
-  const translationId = await getTranslationId();
+  const [translationId, tafsirId] = await Promise.all([
+    getTranslationId(),
+    getTafsirId(),
+  ]);
+  const resourceIds = [translationId, tafsirId].filter(
+    (x): x is number => x !== null,
+  );
 
   const ayahsQuery = supabasePublic
     .from("ayahs")
     .select("id, ayah_number, text_uthmani, ayah_resources(resource_id, text)")
     .eq("surah_id", id)
-    .eq("ayah_resources.resource_id", translationId ?? -1)
+    .in("ayah_resources.resource_id", resourceIds.length ? resourceIds : [-1])
     .order("ayah_number");
 
   const [surah, ayahs] = await Promise.all([
@@ -65,13 +78,23 @@ export async function getSurahWithAyahs(id: number) {
   if (ayahs.error) throw new Error(ayahs.error.message);
   if (!surah.data) return null;
 
+  type Row = {
+    id: number;
+    ayah_number: number;
+    text_uthmani: string;
+    ayah_resources: { resource_id: number; text: string }[] | null;
+  };
+  const textOf = (row: Row, resourceId: number | null) =>
+    row.ayah_resources?.find((r) => r.resource_id === resourceId)?.text ?? null;
+
   return {
     surah: surah.data as Surah,
-    ayahs: ayahs.data.map((a) => ({
+    ayahs: (ayahs.data as Row[]).map((a) => ({
       id: a.id,
       ayah_number: a.ayah_number,
       text_uthmani: a.text_uthmani,
-      translation: a.ayah_resources?.[0]?.text ?? null,
+      translation: textOf(a, translationId),
+      tafsir: textOf(a, tafsirId),
     })) as Ayah[],
   };
 }
@@ -91,7 +114,11 @@ export async function getBasmala(): Promise<string> {
 
 // Tanzil puts the basmala at the start of ayah 1 of every surah except 1 and 9.
 // We remove it for DISPLAY only — the stored text is never changed.
-export function displayText(surahId: number, ayah: Ayah, basmala: string) {
+export function displayText(
+  surahId: number,
+  ayah: Pick<Ayah, "ayah_number" | "text_uthmani">,
+  basmala: string,
+) {
   if (surahId === 1 || surahId === 9 || ayah.ayah_number !== 1)
     return ayah.text_uthmani;
   return ayah.text_uthmani.startsWith(basmala)

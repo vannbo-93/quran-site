@@ -11,6 +11,7 @@ import {
   type AudioInfo,
   type Reciter,
 } from "@/lib/reciters";
+import { saveLastRead } from "@/lib/lastRead";
 
 // Font sizes for the Quran text (rem)
 const SIZES = [1.5, 1.875, 2.25, 2.75, 3.25];
@@ -19,12 +20,14 @@ type Prefs = {
   size: number;
   mode: Mode;
   translation: boolean;
+  tafsir: boolean;
   reciter: string;
 };
 const DEFAULTS: Prefs = {
   size: 2,
   mode: "mushaf",
   translation: true,
+  tafsir: false,
   reciter: DEFAULT_RECITER,
 };
 const STORAGE_KEY = "reader-prefs";
@@ -80,6 +83,8 @@ function parsePrefs(raw: string): Prefs {
         typeof saved?.translation === "boolean"
           ? saved.translation
           : DEFAULTS.translation,
+      tafsir:
+        typeof saved?.tafsir === "boolean" ? saved.tafsir : DEFAULTS.tafsir,
       reciter: RECITERS.some((r) => r.id === saved?.reciter)
         ? saved.reciter
         : DEFAULTS.reciter,
@@ -104,6 +109,16 @@ const hostOf = (url: string) => {
     return "";
   }
 };
+
+// Save an ayah element as the last read position
+function rememberPosition(el: HTMLElement) {
+  const holder = el.closest<HTMLElement>("[data-surah]");
+  saveLastRead({
+    surah: Number(holder?.dataset.surah),
+    ayah: Number(el.dataset.ayah),
+    surahName: holder?.dataset.surahName ?? "",
+  });
+}
 
 // ---------- Component ----------
 export function Reader({ children }: { children: React.ReactNode }) {
@@ -176,6 +191,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
     playingElRef.current?.classList.remove("is-playing");
     el?.classList.add("is-playing");
     playingElRef.current = el;
+    if (el) rememberPosition(el); // listening counts as reading
   }
 
   // Read from the DOM so audio callbacks always see the current values
@@ -513,6 +529,47 @@ export function Reader({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("hashchange", focusFromHash);
   }, []);
 
+  // Last read position: the ayah near the top third of the screen, once the user scrolls
+  useEffect(() => {
+    const root = readerRef.current;
+    if (!root) return;
+    const mountedAt = performance.now();
+    let userScrolled = false;
+    let timer = 0;
+
+    const markUser = () => {
+      userScrolled = true;
+    };
+    // Scrolls in the first moments come from the page itself (deep links), not the reader
+    const onScroll = () => {
+      if (performance.now() - mountedAt > 1500) userScrolled = true;
+    };
+    window.addEventListener("wheel", markUser, { passive: true });
+    window.addEventListener("touchmove", markUser, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!userScrolled) return;
+        const entry = entries.find((e) => e.isIntersecting);
+        if (!entry) return;
+        const el = entry.target as HTMLElement;
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => rememberPosition(el), 800);
+      },
+      { rootMargin: "-30% 0px -60% 0px" }, // a thin band near the top third of the screen
+    );
+    root.querySelectorAll("[data-ayah]").forEach((el) => observer.observe(el));
+
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(timer);
+      window.removeEventListener("wheel", markUser);
+      window.removeEventListener("touchmove", markUser);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
   // Stop everything when leaving the page
   useEffect(() => {
     const cors = corsAudioRef;
@@ -536,6 +593,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
         className="reader"
         data-mode={prefs.mode}
         data-translation={prefs.translation ? "on" : "off"}
+        data-tafsir={prefs.tafsir ? "on" : "off"}
         data-reciter={prefs.reciter}
         style={
           { "--quran-size": `${SIZES[prefs.size]}rem` } as React.CSSProperties
@@ -632,11 +690,18 @@ export function Reader({ children }: { children: React.ReactNode }) {
               بطاقات
             </ToolButton>
             {prefs.mode === "cards" && (
-              <ToolButton
-                active={prefs.translation}
-                onClick={() => update({ translation: !prefs.translation })}>
-                ترجمة
-              </ToolButton>
+              <>
+                <ToolButton
+                  active={prefs.translation}
+                  onClick={() => update({ translation: !prefs.translation })}>
+                  ترجمة
+                </ToolButton>
+                <ToolButton
+                  active={prefs.tafsir}
+                  onClick={() => update({ tafsir: !prefs.tafsir })}>
+                  تفسير
+                </ToolButton>
+              </>
             )}
             <span aria-hidden className="mx-1 h-5 w-px bg-white/15" />
             <ToolButton
@@ -803,13 +868,22 @@ function DisplaySettings({
       </SettingRow>
 
       {prefs.mode === "cards" && (
-        <SettingRow label="الترجمة">
-          <ToolButton
-            active={prefs.translation}
-            onClick={() => update({ translation: !prefs.translation })}>
-            {prefs.translation ? "ظاهرة" : "مخفية"}
-          </ToolButton>
-        </SettingRow>
+        <>
+          <SettingRow label="الترجمة">
+            <ToolButton
+              active={prefs.translation}
+              onClick={() => update({ translation: !prefs.translation })}>
+              {prefs.translation ? "ظاهرة" : "مخفية"}
+            </ToolButton>
+          </SettingRow>
+          <SettingRow label="التفسير">
+            <ToolButton
+              active={prefs.tafsir}
+              onClick={() => update({ tafsir: !prefs.tafsir })}>
+              {prefs.tafsir ? "ظاهر" : "مخفي"}
+            </ToolButton>
+          </SettingRow>
+        </>
       )}
 
       <SettingRow label="حجم الخط">

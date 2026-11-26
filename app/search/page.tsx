@@ -73,16 +73,7 @@ async function SearchResults({ searchParams }: { searchParams: SearchParams }) {
                 سورة {r.surah_name} · الآية {r.ayah_number}
               </p>
               <p className="mt-2 font-quran text-2xl leading-[2.1]">
-                {displayText(
-                  r.surah_id,
-                  {
-                    id: r.id,
-                    ayah_number: r.ayah_number,
-                    text_uthmani: r.text_uthmani,
-                    translation: null,
-                  },
-                  basmala,
-                )}
+                {displayText(r.surah_id, r, basmala)}
               </p>
               {english && r.translation && (
                 <p

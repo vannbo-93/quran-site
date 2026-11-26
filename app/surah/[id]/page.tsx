@@ -91,7 +91,10 @@ async function SurahContent({ params }: { params: Params }) {
           </div>
         )}
 
-        <div className="quran-text font-quran" data-surah={surahId}>
+        <div
+          className="quran-text font-quran"
+          data-surah={surahId}
+          data-surah-name={surah.name_ar}>
           {ayahs.map((a) => (
             <span
               key={a.id}
@@ -108,6 +111,12 @@ async function SurahContent({ params }: { params: Params }) {
                 {a.translation && (
                   <span dir="ltr" lang="en" className="ayah-translation">
                     {a.translation}
+                  </span>
+                )}
+                {a.tafsir && (
+                  <span className="ayah-tafsir">
+                    <span className="ayah-tafsir-label">التفسير الميسر</span>
+                    {a.tafsir}
                   </span>
                 )}
               </span>
