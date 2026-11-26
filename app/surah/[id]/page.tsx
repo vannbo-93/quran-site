@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Reader } from "@/components/Reader";
+import { Reader } from "@/components/reader/Reader";
 import {
   displayText,
   getBasmala,
