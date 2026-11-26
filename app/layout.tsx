@@ -39,7 +39,7 @@ export default function RootLayout({
         {children}
         <footer
           dir="ltr"
-          className="px-6 py-10 text-center text-xs leading-relaxed text-white/30">
+          className="site-footer px-6 py-10 text-center text-xs leading-relaxed text-white/30">
           Quran text: Tanzil Project (tanzil.net) — CC BY 3.0
           <br />
           English translation: Saheeh International, via Tanzil — non-commercial

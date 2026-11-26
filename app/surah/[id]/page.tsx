@@ -23,7 +23,7 @@ type Params = Promise<{ id: string }>;
 // Shell renders instantly; surah content streams in
 export default function SurahPage({ params }: { params: Params }) {
   return (
-    <main className="mx-auto max-w-3xl px-6 pt-10 pb-32">
+    <main className="mx-auto max-w-7xl px-4 pt-10 pb-48 sm:px-6">
       <Suspense fallback={<SurahSkeleton />}>
         <SurahContent params={params} />
       </Suspense>
@@ -121,6 +121,27 @@ async function SurahContent({ params }: { params: Params }) {
                 )}
               </span>
               <span className="ayah-num">{toArabicDigits(a.ayah_number)}</span>
+              <button
+                type="button"
+                data-share
+                className="ayah-share"
+                aria-label={`مشاركة الآية ${a.ayah_number}`}
+                title="مشاركة الآية">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden>
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
+                </svg>
+              </button>
             </span>
           ))}
         </div>

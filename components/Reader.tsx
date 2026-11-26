@@ -22,6 +22,8 @@ type Prefs = {
   translation: boolean;
   tafsir: boolean;
   reciter: string;
+  volume: number; // 0..1
+  muted: boolean;
 };
 const DEFAULTS: Prefs = {
   size: 2,
@@ -29,6 +31,8 @@ const DEFAULTS: Prefs = {
   translation: true,
   tafsir: false,
   reciter: DEFAULT_RECITER,
+  volume: 1,
+  muted: false,
 };
 const STORAGE_KEY = "reader-prefs";
 
@@ -88,6 +92,13 @@ function parsePrefs(raw: string): Prefs {
       reciter: RECITERS.some((r) => r.id === saved?.reciter)
         ? saved.reciter
         : DEFAULTS.reciter,
+      volume:
+        typeof saved?.volume === "number" &&
+        saved.volume >= 0 &&
+        saved.volume <= 1
+          ? saved.volume
+          : DEFAULTS.volume,
+      muted: typeof saved?.muted === "boolean" ? saved.muted : DEFAULTS.muted,
     };
   } catch {
     return DEFAULTS;
@@ -100,7 +111,7 @@ function parsePrefs(raw: string): Prefs {
 type Session =
   | { kind: "ayah" }
   | { kind: "file"; info: AudioInfo; stopAt: number | null };
-type AudioGraph = { ctx: AudioContext; analyser: AnalyserNode };
+type AudioGraph = { ctx: AudioContext; analyser: AnalyserNode; gain: GainNode };
 
 const hostOf = (url: string) => {
   try {
@@ -125,7 +136,12 @@ export function Reader({ children }: { children: React.ReactNode }) {
   const prefs = parsePrefs(
     useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot),
   );
-  const update = (change: Partial<Prefs>) => savePrefs({ ...prefs, ...change });
+  const update = (change: Partial<Prefs>) => {
+    const next = { ...prefs, ...change };
+    savePrefs(next);
+    if ("volume" in change || "muted" in change)
+      applyVolume(next.muted ? 0 : next.volume);
+  };
 
   const readerRef = useRef<HTMLDivElement | null>(null);
 
@@ -205,6 +221,18 @@ export function Reader({ children }: { children: React.ReactNode }) {
   const ayahEl = (n: number) =>
     readerRef.current?.querySelector<HTMLElement>(`[data-ayah="${n}"]`) ?? null;
 
+  // Volume is read from the DOM so newly created players get the current value
+  const currentVolume = () => {
+    const v = Number(readerRef.current?.dataset.volume);
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1;
+  };
+
+  function applyVolume(v: number) {
+    // CORS player: volume goes through the gain node (after the analyser, so the bars keep moving)
+    if (graphRef.current) graphRef.current.gain.gain.value = v;
+    if (plainAudioRef.current) plainAudioRef.current.volume = v;
+  }
+
   const nextAyah = (el: HTMLElement | null) => {
     let next = el?.nextElementSibling ?? null;
     while (next && !(next instanceof HTMLElement && next.dataset.ayah))
@@ -243,9 +271,12 @@ export function Reader({ children }: { children: React.ReactNode }) {
         const analyser = ctx.createAnalyser();
         analyser.fftSize = 64;
         analyser.smoothingTimeConstant = 0.75;
+        const gain = ctx.createGain();
+        gain.gain.value = currentVolume();
         source.connect(analyser);
-        analyser.connect(ctx.destination);
-        graphRef.current = { ctx, analyser };
+        analyser.connect(gain);
+        gain.connect(ctx.destination);
+        graphRef.current = { ctx, analyser, gain };
       } catch {
         // Web Audio unavailable: the visualizer uses a simulated animation
       }
@@ -254,7 +285,10 @@ export function Reader({ children }: { children: React.ReactNode }) {
   }
 
   function getPlainAudio() {
-    if (!plainAudioRef.current) plainAudioRef.current = createAudio(false);
+    if (!plainAudioRef.current) {
+      plainAudioRef.current = createAudio(false);
+      plainAudioRef.current.volume = currentVolume();
+    }
     return plainAudioRef.current;
   }
 
@@ -492,7 +526,42 @@ export function Reader({ children }: { children: React.ReactNode }) {
     play(el, false, continuousRef.current);
   }
 
+  // Share an ayah: phones open the share sheet, computers copy to the clipboard
+  async function shareAyah(el: HTMLElement) {
+    const holder = el.closest<HTMLElement>("[data-surah]");
+    const surah = holder?.dataset.surah;
+    const name = holder?.dataset.surahName ?? "";
+    const ayah = el.dataset.ayah;
+    const text = el.querySelector(".ayah-text")?.textContent?.trim() ?? "";
+    const url = `${window.location.origin}/surah/${surah}#ayah-${ayah}`;
+    const body = `${text}\n﴿${name} ${ayah}﴾\n${url}`;
+
+    const isTouch = window.matchMedia("(pointer: coarse)").matches;
+    if (isTouch && navigator.share) {
+      try {
+        await navigator.share({ text: body });
+      } catch {
+        // user closed the share sheet
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(body);
+      showNotice("تم نسخ الآية مع رابطها");
+    } catch {
+      showNotice("تعذّر النسخ");
+    }
+  }
+
   function handleClick(e: React.MouseEvent<HTMLDivElement>) {
+    const shareButton = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-share]",
+    );
+    if (shareButton) {
+      const el = shareButton.closest<HTMLElement>("[data-ayah]");
+      if (el) shareAyah(el);
+      return; // don't play the ayah
+    }
     if (window.getSelection()?.toString()) return; // user is selecting text, not clicking
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-ayah]");
     if (el) handleAyah(el);
@@ -500,6 +569,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key !== "Enter" && e.key !== " ") return;
+    if ((e.target as HTMLElement).closest("[data-share]")) return; // the share button handles itself
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-ayah]");
     if (!el) return;
     e.preventDefault();
@@ -595,6 +665,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
         data-translation={prefs.translation ? "on" : "off"}
         data-tafsir={prefs.tafsir ? "on" : "off"}
         data-reciter={prefs.reciter}
+        data-volume={prefs.muted ? 0 : prefs.volume}
         style={
           { "--quran-size": `${SIZES[prefs.size]}rem` } as React.CSSProperties
         }
@@ -670,15 +741,15 @@ export function Reader({ children }: { children: React.ReactNode }) {
 
           {/* Phones: one button opens the display settings */}
           <ToolButton
-            className="sm:hidden"
+            className="md:hidden"
             active={menu === "display"}
             onClick={() => toggleMenu("display")}
             label="إعدادات العرض">
             Aa
           </ToolButton>
 
-          {/* Tablets and desktop: everything inline */}
-          <div className="hidden items-center gap-1 sm:flex">
+          {/* Tablets (768px+) and desktop: everything inline */}
+          <div className="hidden items-center gap-1 md:flex">
             <ToolButton
               active={prefs.mode === "mushaf"}
               onClick={() => update({ mode: "mushaf" })}>
@@ -704,17 +775,21 @@ export function Reader({ children }: { children: React.ReactNode }) {
               </>
             )}
             <span aria-hidden className="mx-1 h-5 w-px bg-white/15" />
+            <VolumeControl prefs={prefs} update={update} />
+            <span aria-hidden className="mx-1 h-5 w-px bg-white/15" />
             <ToolButton
               label="تكبير الخط"
+              className="text-base"
               disabled={prefs.size === SIZES.length - 1}
               onClick={() => update({ size: prefs.size + 1 })}>
-              A+
+              +
             </ToolButton>
             <ToolButton
               label="تصغير الخط"
+              className="text-base"
               disabled={prefs.size === 0}
               onClick={() => update({ size: prefs.size - 1 })}>
-              A−
+              −
             </ToolButton>
           </div>
         </div>
@@ -886,24 +961,101 @@ function DisplaySettings({
         </>
       )}
 
+      <SettingRow label="الصوت">
+        <VolumeControl prefs={prefs} update={update} />
+      </SettingRow>
+
       <SettingRow label="حجم الخط">
         <ToolButton
           label="تصغير الخط"
+          className="text-base"
           disabled={prefs.size === 0}
           onClick={() => update({ size: prefs.size - 1 })}>
-          A−
+          −
         </ToolButton>
         <span className="w-8 text-center tabular-nums text-white/60">
           {prefs.size + 1}
         </span>
         <ToolButton
           label="تكبير الخط"
+          className="text-base"
           disabled={prefs.size === SIZES.length - 1}
           onClick={() => update({ size: prefs.size + 1 })}>
-          A+
+          +
         </ToolButton>
       </SettingRow>
     </div>
+  );
+}
+
+// ---------- Volume ----------
+function VolumeControl({
+  prefs,
+  update,
+}: {
+  prefs: Prefs;
+  update: (change: Partial<Prefs>) => void;
+}) {
+  const silent = prefs.muted || prefs.volume === 0;
+  return (
+    <div dir="ltr" className="flex items-center gap-2 px-2">
+      <button
+        type="button"
+        onClick={() =>
+          update(
+            silent && prefs.volume === 0
+              ? { volume: 1, muted: false }
+              : { muted: !prefs.muted },
+          )
+        }
+        aria-label={silent ? "تشغيل الصوت" : "كتم الصوت"}
+        className={`grid h-8 w-8 place-items-center rounded-full transition hover:text-accent ${
+          silent ? "text-white/40" : "text-white/70"
+        }`}>
+        <SpeakerIcon level={silent ? 0 : prefs.volume} />
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.05}
+        value={prefs.muted ? 0 : prefs.volume}
+        onChange={(e) =>
+          update({ volume: Number(e.target.value), muted: false })
+        }
+        aria-label="مستوى الصوت"
+        className="volume-slider w-24"
+        style={
+          {
+            "--fill": `${(prefs.muted ? 0 : prefs.volume) * 100}%`,
+          } as React.CSSProperties
+        }
+      />
+    </div>
+  );
+}
+
+function SpeakerIcon({ level }: { level: number }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden>
+      <path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor" />
+      {level === 0 ? (
+        <path d="m16 9 5 6m0-6-5 6" />
+      ) : (
+        <>
+          <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+          {level > 0.5 && <path d="M18.5 5.5a9 9 0 0 1 0 13" />}
+        </>
+      )}
+    </svg>
   );
 }
 

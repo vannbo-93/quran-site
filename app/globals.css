@@ -299,7 +299,9 @@
   padding-top: 0.75rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   font-family: var(--nf-readex), sans-serif;
-  font-size: max(0.95rem, calc(var(--qs) * 0.45));
+  font-weight: 100;
+  /* works with or without the --qs variable */
+  font-size: max(0.95rem, calc(var(--qs, var(--quran-size, 2.25rem)) * 0.45));
   line-height: 1.9;
   color: rgba(255, 255, 255, 0.6);
   white-space: pre-line; /* keeps footnotes on their own line */
@@ -312,4 +314,118 @@
 }
 .reader[data-mode="cards"] .ayah:hover .ayah-tafsir {
   color: rgba(255, 255, 255, 0.8);
+}
+
+/* ---------- Distinct colors: translation (light blue) / tafsir (sand) ---------- */
+.reader[data-mode="cards"][data-translation="on"] .ayah-translation {
+  color: rgba(147, 197, 253, 0.75);
+}
+.reader[data-mode="cards"] .ayah:hover .ayah-translation {
+  color: rgba(147, 197, 253, 1);
+}
+.reader[data-mode="cards"][data-tafsir="on"] .ayah-tafsir {
+  color: rgba(232, 213, 170, 0.75);
+}
+.ayah-tafsir-label {
+  color: rgba(232, 213, 170, 0.5);
+}
+.reader[data-mode="cards"] .ayah:hover .ayah-tafsir {
+  color: rgba(232, 213, 170, 1);
+}
+
+/* ---------- Volume slider ---------- */
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #38bdf8 0 var(--fill, 100%),
+    rgba(255, 255, 255, 0.15) var(--fill, 100%) 100%
+  );
+  cursor: pointer;
+}
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+  transition: transform 0.2s;
+}
+.volume-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+}
+.volume-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+/* ---------- Footer above the floating controls on the reader page ---------- */
+body:has(.reader) .site-footer {
+  padding-bottom: 12rem;
+}
+
+/* ---------- Share button (cards mode only) ---------- */
+.ayah-share {
+  display: none;
+}
+.reader[data-mode="cards"] .ayah-share {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  align-self: flex-start;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.3);
+  transition:
+    color 0.3s,
+    background-color 0.3s;
+}
+.reader[data-mode="cards"] .ayah:hover .ayah-share {
+  color: rgba(255, 255, 255, 0.6);
+}
+.reader[data-mode="cards"] .ayah-share:hover {
+  color: #38bdf8;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ---------- Phones: smaller Quran text and tighter cards ---------- */
+/* (inline --quran-size can't be overridden, so each size is multiplied by 0.72 here) */
+@media (max-width: 639px) {
+  .quran-text {
+    font-size: calc(var(--quran-size, 2.25rem) * 0.72);
+  }
+  .basmala {
+    font-size: calc(var(--quran-size, 2.25rem) * 0.79);
+  }
+  .reader[data-mode="cards"] .quran-text {
+    gap: 0.75rem;
+  }
+  .reader[data-mode="cards"] .ayah {
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+  .reader[data-mode="cards"] .ayah-num {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 1.05rem;
+    margin-top: calc((var(--quran-size, 2.25rem) * 0.72 * 2.3 - 2.25rem) / 2);
+  }
+  .reader[data-mode="cards"][data-translation="on"] .ayah-translation,
+  .reader[data-mode="cards"][data-tafsir="on"] .ayah-tafsir {
+    font-size: max(0.95rem, calc(var(--quran-size, 2.25rem) * 0.72 * 0.45));
+  }
+  .reader[data-mode="cards"] .ayah-share {
+    width: 1.75rem;
+    height: 1.75rem;
+    color: rgba(255, 255, 255, 0.45); /* no hover on phones: keep it visible */
+  }
 }

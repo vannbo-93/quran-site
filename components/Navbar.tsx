@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { SearchIcon } from "@/components/SearchBox";
+import { MenuButton } from "@/components/MenuButton";
 
 export function Navbar() {
   return (
@@ -36,9 +37,7 @@ export function Navbar() {
             className="grid h-9 w-9 place-items-center rounded-md border border-white/15 bg-white/10 transition hover:bg-white/20 hover:text-accent">
             <SearchIcon className="h-4 w-4" />
           </Link>
-          <button className="flex items-center gap-2 rounded-md border border-white/15 bg-white/10 px-4 py-2 tracking-widest transition hover:bg-white/20">
-            <span className="text-base leading-none">☰</span> MENU
-          </button>
+          <MenuButton />
         </div>
       </div>
     </header>
