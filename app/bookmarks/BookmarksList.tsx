@@ -4,8 +4,6 @@ import Link from "next/link";
 import { BookmarkIcon } from "@/components/BookmarkIcon";
 import { removeAyah, removeSurah, useBookmarks } from "@/lib/bookmarks";
 
-const arabic = (n: number) => n.toLocaleString("ar-EG");
-
 function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button
@@ -47,7 +45,7 @@ export function BookmarksList() {
       {surahs.length > 0 && (
         <section>
           <h2 className="mb-4 font-arabic text-xl">
-            السور <span className="text-sm text-white/40">({arabic(surahs.length)})</span>
+            السور <span className="text-sm text-white/40">({surahs.length})</span>
           </h2>
           <ul className="grid gap-3 sm:grid-cols-2">
             {surahs.map((s) => (
@@ -71,7 +69,7 @@ export function BookmarksList() {
       {ayahs.length > 0 && (
         <section>
           <h2 className="mb-4 font-arabic text-xl">
-            الآيات <span className="text-sm text-white/40">({arabic(ayahs.length)})</span>
+            الآيات <span className="text-sm text-white/40">({ayahs.length})</span>
           </h2>
           <ul className="space-y-3">
             {ayahs.map((a) => (
@@ -79,7 +77,7 @@ export function BookmarksList() {
                 <Link href={`/surah/${a.surah}#ayah-${a.ayah}`} className="relative min-w-0 flex-1 py-3">
                   <p className="line-clamp-2 font-quran text-2xl leading-[2.2]">{a.text}</p>
                   <p className="mt-1 font-arabic text-xs text-white/40 transition group-hover:text-accent">
-                    سورة {a.surahName} · الآية {arabic(a.ayah)}
+                    سورة {a.surahName} · الآية {a.ayah}
                   </p>
                 </Link>
                 <RemoveButton

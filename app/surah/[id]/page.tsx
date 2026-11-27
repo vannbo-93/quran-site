@@ -1,5 +1,3 @@
-/** @format */
-
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -13,7 +11,6 @@ import {
   getBasmala,
   getSurahs,
   getSurahWithAyahs,
-  toArabicDigits,
   type Ayah,
   type Surah,
 } from "@/lib/quran";
@@ -27,11 +24,7 @@ export function generateStaticParams() {
 type Params = Promise<{ id: string }>;
 
 // Title, description and share image for each surah
-export async function generateMetadata({
-  params,
-}: {
-  params: Params;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id } = await params;
   const surahId = Number(id);
   const surah = (await getSurahs()).find((s) => s.id === surahId);
@@ -41,12 +34,7 @@ export async function generateMetadata({
   const description = `اقرأ سورة ${surah.name_ar} (${surah.ayah_count} آية، ${
     surah.revelation_place === "makkah" ? "مكية" : "مدنية"
   }) واستمع إليها، مع الترجمة الإنجليزية والتفسير الميسر وألوان التجويد.`;
-  const image = {
-    url: `/og/surah-${surah.id}.jpg?v=2`,
-    width: 1200,
-    height: 630,
-    alt: `سورة ${surah.name_ar}`,
-  };
+  const image = { url: `/og/surah-${surah.id}.jpg?v=3`, width: 1200, height: 630, alt: `سورة ${surah.name_ar}` };
 
   return {
     title,
@@ -62,12 +50,7 @@ export async function generateMetadata({
       url: `/surah/${surah.id}`,
       images: [image],
     },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      images: [image.url],
-    },
+    twitter: { card: "summary_large_image", title, description, images: [image.url] },
   };
 }
 
@@ -103,44 +86,27 @@ async function SurahContent({ params }: { params: Params }) {
 
   return (
     <>
-      <Link
-        href="/"
-        className="text-sm text-white/40 transition hover:text-accent">
+      <Link href="/" className="text-sm text-white/40 transition hover:text-accent">
         → فهرس السور
       </Link>
 
       {/* Surah header */}
       <header className="group mt-8 mb-14 text-center">
-        <div
-          dir="ltr"
-          className="flex items-center justify-center gap-3 text-xs uppercase tracking-widest text-white/40">
-          <span className="tabular-nums">
-            {String(surah.id).padStart(3, "0")}
-          </span>
+        <div dir="ltr" className="flex items-center justify-center gap-3 text-xs uppercase tracking-widest text-white/40">
+          <span className="tabular-nums">{String(surah.id).padStart(3, "0")}</span>
           <span aria-hidden>·</span>
-          <span>
-            {surah.revelation_place === "makkah" ? "Meccan" : "Medinan"}
-          </span>
+          <span>{surah.revelation_place === "makkah" ? "Meccan" : "Medinan"}</span>
           <span aria-hidden>·</span>
           <span>{surah.ayah_count} Ayahs</span>
         </div>
         <h1 className="glow-text mt-4 font-quran text-6xl leading-[1.6] md:text-7xl">
           سورة {surah.name_ar}
         </h1>
-        <p
-          dir="ltr"
-          className="mt-1 text-3xl font-medium tracking-tight md:text-4xl">
-          <span className="font-serif font-normal italic text-white/50">
-            Surah
-          </span>{" "}
-          {surah.name_en}
+        <p dir="ltr" className="mt-1 text-3xl font-medium tracking-tight md:text-4xl">
+          <span className="font-serif font-normal italic text-white/50">Surah</span> {surah.name_en}
         </p>
         <div className="mt-5 flex justify-center">
-          <SurahBookmarkButton
-            surah={surah.id}
-            name={surah.name_ar}
-            nameEn={surah.name_en}
-          />
+          <SurahBookmarkButton surah={surah.id} name={surah.name_ar} nameEn={surah.name_en} />
         </div>
       </header>
 
@@ -151,10 +117,7 @@ async function SurahContent({ params }: { params: Params }) {
           </div>
         )}
 
-        <div
-          className="quran-text font-quran"
-          data-surah={surahId}
-          data-surah-name={surah.name_ar}>
+        <div className="quran-text font-quran" data-surah={surahId} data-surah-name={surah.name_ar}>
           {ayahs.map((a) => (
             <span
               key={a.id}
@@ -163,7 +126,8 @@ async function SurahContent({ params }: { params: Params }) {
               role="button"
               tabIndex={0}
               aria-label={playLabel(a.ayah_number)}
-              className="ayah glass">
+              className="ayah glass"
+            >
               <span className="ayah-body">
                 <span className="ayah-text">
                   <AyahText surahId={surahId} ayah={a} basmala={basmala} />
@@ -181,14 +145,15 @@ async function SurahContent({ params }: { params: Params }) {
                 )}
               </span>
               <span className="ayah-num">
-                {toArabicDigits(a.ayah_number)}
+                {a.ayah_number}
                 {/* Mushaf mode: small save button above the ayah number */}
                 <button
                   type="button"
                   data-bookmark
                   className="ayah-bookmark-mushaf"
                   aria-label={`حفظ الآية ${a.ayah_number}`}
-                  title="حفظ الآية">
+                  title="حفظ الآية"
+                >
                   <BookmarkIcon className="h-3 w-3" />
                 </button>
               </span>
@@ -199,7 +164,8 @@ async function SurahContent({ params }: { params: Params }) {
                   data-bookmark
                   className="ayah-bookmark"
                   aria-label={`حفظ الآية ${a.ayah_number}`}
-                  title="حفظ الآية">
+                  title="حفظ الآية"
+                >
                   <BookmarkIcon />
                 </button>
                 <button
@@ -207,16 +173,9 @@ async function SurahContent({ params }: { params: Params }) {
                   data-share
                   className="ayah-share"
                   aria-label={`مشاركة الآية ${a.ayah_number}`}
-                  title="مشاركة الآية">
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden>
+                  title="مشاركة الآية"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <circle cx="18" cy="5" r="3" />
                     <circle cx="6" cy="12" r="3" />
                     <circle cx="18" cy="19" r="3" />
@@ -239,42 +198,21 @@ async function SurahContent({ params }: { params: Params }) {
 }
 
 // Displayed text (basmala removed from ayah 1) with its tajweed spans
-function AyahText({
-  surahId,
-  ayah,
-  basmala,
-}: {
-  surahId: number;
-  ayah: Ayah;
-  basmala: string;
-}) {
+function AyahText({ surahId, ayah, basmala }: { surahId: number; ayah: Ayah; basmala: string }) {
   const shown = displayText(surahId, ayah, basmala);
   const shift = Array.from(ayah.text_uthmani).length - Array.from(shown).length;
   return <TajweedText text={shown} annotations={ayah.tajweed} shift={shift} />;
 }
 
-function NavCard({
-  surah,
-  label,
-  end = false,
-}: {
-  surah: Surah;
-  label: string;
-  end?: boolean;
-}) {
+function NavCard({ surah, label, end = false }: { surah: Surah; label: string; end?: boolean }) {
   return (
     <Link
       href={`/surah/${surah.id}`}
-      className={`glass group block rounded-2xl p-5 transition duration-300 hover:-translate-y-1 ${end ? "text-left" : ""}`}>
+      className={`glass group block rounded-2xl p-5 transition duration-300 hover:-translate-y-1 ${end ? "text-left" : ""}`}
+    >
       <p className="text-xs text-white/40">{label}</p>
-      <p className="mt-2 font-arabic text-xl transition group-hover:text-accent">
-        {surah.name_ar}
-      </p>
-      <p
-        dir="ltr"
-        className={`text-sm text-white/40 ${end ? "" : "text-right"}`}>
-        {surah.name_en}
-      </p>
+      <p className="mt-2 font-arabic text-xl transition group-hover:text-accent">{surah.name_ar}</p>
+      <p dir="ltr" className={`text-sm text-white/40 ${end ? "" : "text-right"}`}>{surah.name_en}</p>
     </Link>
   );
 }

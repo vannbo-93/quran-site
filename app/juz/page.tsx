@@ -3,12 +3,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getJuzStarts } from "@/lib/juz";
-import { toArabicDigits } from "@/lib/quran";
 
 export const metadata: Metadata = {
   title: "الأجزاء", // the layout adds " | القرآن الكريم"
-  description:
-    "أجزاء القرآن الكريم الثلاثون، وبداية كل جزء: السورة والآية ورقم الصفحة.",
+  description: "أجزاء القرآن الكريم الثلاثون، وبداية كل جزء: السورة والآية ورقم الصفحة.",
   alternates: { canonical: "/juz" },
 };
 
@@ -44,11 +42,10 @@ export default async function JuzPage() {
                 <span className="uppercase tracking-widest">Page {j.page}</span>
               </div>
               <p className="mt-6 font-arabic text-2xl transition group-hover:text-accent">
-                الجزء {toArabicDigits(j.juz)}
+                الجزء {j.juz}
               </p>
               <p className="mt-1 font-arabic text-sm text-white/50">
-                يبدأ من سورة {j.surah_name} · الآية{" "}
-                {toArabicDigits(j.ayah_number)}
+                يبدأ من سورة {j.surah_name} · الآية {j.ayah_number}
               </p>
             </Link>
           </li>

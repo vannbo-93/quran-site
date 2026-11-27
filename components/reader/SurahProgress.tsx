@@ -4,7 +4,6 @@ import type { Progress } from "./useAudioPlayer";
 const STEPS = 1000; // slider resolution
 const SEEK_KEYS = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"];
 
-const arabic = (n: number) => n.toLocaleString("ar-EG");
 
 function formatTime(seconds: number) {
   const s = Math.max(0, Math.floor(seconds));
@@ -40,7 +39,7 @@ export function SurahProgress({
 
   const setAyahLabel = (ayah: number, total: number) => {
     if (ayahRef.current) {
-      ayahRef.current.textContent = ayah > 0 ? `الآية ${arabic(ayah)} من ${arabic(total)}` : "البداية";
+      ayahRef.current.textContent = ayah > 0 ? `الآية ${ayah} من ${total}` : "البداية";
     }
   };
 

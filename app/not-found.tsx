@@ -17,7 +17,7 @@ export default function NotFound() {
           className="absolute -inset-8 rounded-full bg-accent/0 blur-3xl transition duration-700 group-hover:bg-accent/25"
         />
         <p aria-hidden className="glow-text relative font-quran text-8xl leading-[1.4] md:text-9xl">
-          ٤٠٤
+          404
         </p>
       </div>
 

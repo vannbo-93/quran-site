@@ -23,14 +23,14 @@ export const metadata: Metadata = {
     url: "/",
     images: [
       {
-        url: "/og/home.jpg?v=2", // ?v=2: makes WhatsApp / Facebook fetch the new image
+        url: "/og/home.jpg?v=3", // ?v=3: makes WhatsApp / Facebook fetch the new image
         width: 1200,
         height: 630,
         alt: "القرآن الكريم — قراءة واستماع وتفسير",
       },
     ],
   },
-  twitter: { card: "summary_large_image", images: ["/og/home.jpg?v=2"] },
+  twitter: { card: "summary_large_image", images: ["/og/home.jpg?v=3"] },
   appleWebApp: {
     title: "القرآن",
     capable: true,
@@ -96,14 +96,10 @@ export default function RootLayout({
             aria-label="روابط الموقع"
             dir="rtl"
             className="mb-4 flex justify-center gap-5 font-arabic text-sm">
-            <Link
-              href="/about"
-              className="text-white/50 transition hover:text-accent">
+            <Link href="/about" className="text-white/50 transition hover:text-accent">
               عن الموقع والمصادر
             </Link>
-            <Link
-              href="/privacy"
-              className="text-white/50 transition hover:text-accent">
+            <Link href="/privacy" className="text-white/50 transition hover:text-accent">
               الخصوصية
             </Link>
           </nav>

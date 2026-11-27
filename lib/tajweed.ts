@@ -31,10 +31,10 @@ const RULE_GROUP: Record<string, TajweedGroup> = {
 // Legend, in reading order
 export const TAJWEED_LEGEND: { group: TajweedGroup; ar: string; en: string }[] = [
   { group: "silent", ar: "لا يُنطق", en: "Silent letter" },
-  { group: "madd2", ar: "مد طبيعي (٢)", en: "Normal madd (2)" },
-  { group: "madd-jaiz", ar: "مد منفصل وعارض (٢/٤/٦)", en: "Separated madd (2/4/6)" },
-  { group: "madd-wajib", ar: "مد متصل (٤/٥)", en: "Connected madd (4/5)" },
-  { group: "madd-lazim", ar: "مد لازم (٦)", en: "Necessary madd (6)" },
+  { group: "madd2", ar: "مد طبيعي (2)", en: "Normal madd (2)" },
+  { group: "madd-jaiz", ar: "مد منفصل وعارض (2/4/6)", en: "Separated madd (2/4/6)" },
+  { group: "madd-wajib", ar: "مد متصل (4/5)", en: "Connected madd (4/5)" },
+  { group: "madd-lazim", ar: "مد لازم (6)", en: "Necessary madd (6)" },
   { group: "ghunnah", ar: "غنة / إخفاء", en: "Ghunna/ikhfa'" },
   { group: "qalqalah", ar: "قلقلة", en: "Qalqala (echo)" },
 ];

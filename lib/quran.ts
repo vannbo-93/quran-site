@@ -110,5 +110,3 @@ export function displayText(surahId: number, ayah: Pick<Ayah, "ayah_number" | "t
     ? ayah.text_uthmani.slice(basmala.length).trimStart()
     : ayah.text_uthmani;
 }
-
-export const toArabicDigits = (n: number) => n.toLocaleString("ar-EG");
