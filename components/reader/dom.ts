@@ -17,11 +17,12 @@ export function nextAyah(el: HTMLElement | null) {
   return next as HTMLElement | null;
 }
 
-// Scroll only when the ayah leaves the comfortable reading zone
-export function keepInView(el: HTMLElement) {
+// Scroll only when the ayah leaves the comfortable reading zone.
+// instant: jump straight there (after a seek) instead of a smooth scroll.
+export function keepInView(el: HTMLElement, instant = false) {
   const rect = el.getBoundingClientRect();
   const zoneTop = window.innerHeight * 0.2;
   const zoneBottom = window.innerHeight * 0.65; // leave room for the floating controls
   if (rect.top >= zoneTop && rect.bottom <= zoneBottom) return;
-  window.scrollTo({ top: window.scrollY + rect.top - window.innerHeight * 0.3, behavior: "smooth" });
+  window.scrollTo({ top: window.scrollY + rect.top - window.innerHeight * 0.3, behavior: instant ? "instant" : "smooth" });
 }

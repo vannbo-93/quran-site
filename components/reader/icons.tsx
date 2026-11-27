@@ -14,6 +14,15 @@ export function StopIcon() {
   );
 }
 
+export function PauseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden>
+      <rect x="6" y="5" width="4" height="14" rx="1.5" />
+      <rect x="14" y="5" width="4" height="14" rx="1.5" />
+    </svg>
+  );
+}
+
 export function SpeakerIcon({ level }: { level: number }) {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

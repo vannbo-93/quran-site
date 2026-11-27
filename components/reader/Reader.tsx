@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef } from "react";
-import { PlayIcon, StopIcon } from "./icons";
+import { PauseIcon, PlayIcon, StopIcon } from "./icons";
 import { SIZES, savePrefs, usePrefs, type UpdatePrefs } from "./prefs";
 import { shareAyah } from "./share";
+import { SurahProgress } from "./SurahProgress";
 import { Toolbar } from "./Toolbar";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { useDeepLink } from "./useDeepLink";
@@ -18,6 +19,14 @@ export function Reader({ children }: { children: React.ReactNode }) {
   const player = useAudioPlayer({ readerRef, showNotice, clearNotice });
   useDeepLink(readerRef);
   useLastRead(readerRef);
+
+  const playLabel = player.playing
+    ? player.continuous
+      ? "إيقاف مؤقت"
+      : "إيقاف"
+    : player.paused && player.continuous
+      ? "متابعة التلاوة"
+      : "تشغيل السورة";
 
   const update: UpdatePrefs = (change) => {
     const next = { ...prefs, ...change };
@@ -78,17 +87,20 @@ export function Reader({ children }: { children: React.ReactNode }) {
           <Visualizer analyserRef={player.analyserRef} active={player.playing} side="start" />
           <button
             type="button"
-            onClick={player.playing ? player.stop : player.playSurah}
-            aria-label={player.playing ? "إيقاف التلاوة" : "تشغيل السورة"}
+            onClick={player.togglePlay}
+            aria-label={playLabel}
+            title={playLabel}
             className={`glass grid h-16 w-16 place-items-center rounded-full transition duration-300 hover:scale-105 ${
               player.playing ? "text-accent shadow-[0_0_40px_rgba(56,189,248,0.35)]" : "text-white"
             }`}
           >
-            {player.playing ? <StopIcon /> : <PlayIcon />}
+            {player.playing ? player.continuous ? <PauseIcon /> : <StopIcon /> : <PlayIcon />}
           </button>
           <Visualizer analyserRef={player.analyserRef} active={player.playing} side="end" />
         </div>
-        {player.continuous && <p className="font-arabic text-xs text-white/40">تشغيل السورة</p>}
+
+        {/* Surah progress: visible while the surah plays or is paused */}
+        {player.continuous && <SurahProgress getProgress={player.getProgress} onSeek={player.seek} />}
 
         <Toolbar
           prefs={prefs}

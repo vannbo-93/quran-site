@@ -431,7 +431,7 @@ body,
 
 /* ---------- Footer above the floating controls on the reader page ---------- */
 body:has(.reader) .site-footer {
-  padding-bottom: 12rem;
+  padding-bottom: 16rem;
 }
 
 /* ---------- Phones: smaller Quran text and tighter cards ---------- */
@@ -501,4 +501,13 @@ body:has(.reader) .site-footer {
 }
 .reader[data-mode="mushaf"] .ayah.is-target {
   animation: target-flash-mushaf 2.5s ease-out;
+}
+
+/* ---------- Surah progress: fills right → left like the Arabic text ---------- */
+.surah-progress {
+  background: linear-gradient(
+    to left,
+    var(--color-accent) 0 var(--fill, 0%),
+    rgb(var(--fg) / 0.15) var(--fill, 0%) 100%
+  );
 }
