@@ -3,9 +3,10 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "عن الموقع والمصادر — القرآن الكريم",
+  title: "عن الموقع والمصادر",
   description:
     "مصادر نص القرآن الكريم والترجمة والتفسير والتلاوات وألوان التجويد المستعملة في الموقع، وتراخيصها.",
+  alternates: { canonical: "/about" },
 };
 
 const SOURCES = [

@@ -5,7 +5,12 @@ import Link from "next/link";
 import { getJuzStarts } from "@/lib/juz";
 import { toArabicDigits } from "@/lib/quran";
 
-export const metadata: Metadata = { title: "الأجزاء — القرآن الكريم" };
+export const metadata: Metadata = {
+  title: "الأجزاء", // the layout adds " | القرآن الكريم"
+  description:
+    "أجزاء القرآن الكريم الثلاثون، وبداية كل جزء: السورة والآية ورقم الصفحة.",
+  alternates: { canonical: "/juz" },
+};
 
 export default async function JuzPage() {
   const starts = await getJuzStarts();

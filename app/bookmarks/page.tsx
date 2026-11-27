@@ -1,9 +1,12 @@
+/** @format */
+
 import type { Metadata } from "next";
 import { BookmarksList } from "./BookmarksList";
 
 export const metadata: Metadata = {
   title: "المحفوظات",
   description: "السور والآيات التي حفظتها للعودة إليها.",
+  alternates: { canonical: "/bookmarks" },
   robots: { index: false }, // personal page, content lives in the visitor's browser
 };
 

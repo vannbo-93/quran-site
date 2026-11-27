@@ -1,16 +1,13 @@
 /** @format */
 
 import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import { Navbar } from "@/components/Navbar";
-import { arabic, quranFont, sans, serif } from "@/lib/fonts";
-import { Analytics } from "@vercel/analytics/next";
 import { NavAutoHide } from "@/components/NavAutoHide";
-import "./globals.css";
-
-// ---- In app/layout.tsx: replace the `metadata` and `viewport` exports with these ----
-
-// Add this import at the top:
+import { arabic, quranFont, sans, serif } from "@/lib/fonts";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { Analytics } from "@vercel/analytics/next";
+import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL), // makes share image paths absolute
@@ -23,10 +20,10 @@ export const metadata: Metadata = {
     locale: "ar_AR",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
-    url: "/og/home.jpg?v=2",
+    url: "/",
     images: [
       {
-        url: "/og/home.jpg",
+        url: "/og/home.jpg?v=2", // ?v=2: makes WhatsApp / Facebook fetch the new image
         width: 1200,
         height: 630,
         alt: "القرآن الكريم — قراءة واستماع وتفسير",
@@ -68,7 +65,14 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen font-sans text-white antialiased">
-        {/* Soft orange light behind the page so glass effects are visible */}
+        {/* Keyboard users: jump over the navbar straight to the content (visible only on Tab) */}
+        <a
+          href="#content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:right-3 focus:z-[60] focus:rounded-lg focus:bg-black focus:px-4 focus:py-2 focus:font-arabic focus:text-sm focus:text-white focus:ring-2 focus:ring-accent">
+          تخطَّ إلى المحتوى
+        </a>
+
+        {/* Soft light behind the page so glass effects are visible */}
         <div
           aria-hidden
           className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -76,12 +80,33 @@ export default function RootLayout({
           <div className="absolute -bottom-40 -left-40 h-[420px] w-[420px] rounded-full bg-white/[0.03] blur-[120px]" />
           <div className="absolute top-1/2 -right-40 h-[380px] w-[380px] rounded-full bg-white/[0.03] blur-[120px]" />
         </div>
+
         <Navbar />
         <NavAutoHide />
-        {children}
+
+        {/* Target of the skip link */}
+        <div id="content" tabIndex={-1} className="outline-none">
+          {children}
+        </div>
+
         <footer
           dir="ltr"
           className="site-footer px-6 py-10 text-center text-xs leading-relaxed text-white/30">
+          <nav
+            aria-label="روابط الموقع"
+            dir="rtl"
+            className="mb-4 flex justify-center gap-5 font-arabic text-sm">
+            <Link
+              href="/about"
+              className="text-white/50 transition hover:text-accent">
+              عن الموقع والمصادر
+            </Link>
+            <Link
+              href="/privacy"
+              className="text-white/50 transition hover:text-accent">
+              الخصوصية
+            </Link>
+          </nav>
           Quran text: Tanzil Project (tanzil.net) — CC BY 3.0
           <br />
           English translation: Saheeh International, via Tanzil — non-commercial
@@ -89,10 +114,9 @@ export default function RootLayout({
           <br />
           At-Tafsir Al-Muyassar (King Fahd Complex), via Tanzil — non-commercial
           use
-          <p>
-            Tajweed colors: cpfair/quran-tajweed — CC BY 4.0 (automatically
-            generated)
-          </p>
+          <br />
+          Tajweed colors: cpfair/quran-tajweed — CC BY 4.0 (automatically
+          generated)
         </footer>
         <Analytics />
       </body>

@@ -7,7 +7,15 @@ import { SearchBox } from "@/components/SearchBox";
 import { displayText, getBasmala } from "@/lib/quran";
 import { searchAyahs } from "@/lib/search";
 
-export const metadata: Metadata = { title: "البحث في القرآن" };
+export const metadata: Metadata = {
+  title: "البحث في القرآن",
+  description:
+    "ابحث في القرآن الكريم بكلمة أو جزء من آية، بالتشكيل أو بدونه، أو في الترجمة الإنجليزية.",
+  alternates: { canonical: "/search" },
+  // Result pages (/search?q=…) are endless variations of the same content:
+  // keep them out of Google, but let it follow the links to the surahs
+  robots: { index: false, follow: true },
+};
 
 type SearchParams = Promise<{ q?: string | string[] }>;
 

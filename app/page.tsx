@@ -1,15 +1,45 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getSurahs } from "@/lib/quran";
 import { surahMeaning } from "@/lib/surahMeanings";
 import { SearchBox } from "@/components/SearchBox";
 import { ContinueReading } from "@/components/ContinueReading";
 import { SurahPicker } from "@/components/SurahPicker";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+
+export const metadata: Metadata = {
+  // Longer than the H1 on purpose: search results show this line
+  title: { absolute: "القرآن الكريم — اقرأ واستمع مع الترجمة والتفسير وألوان التجويد" },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
+};
+
+// Tells search engines what the site is, and that it has a search page
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: SITE_NAME,
+  alternateName: "The Noble Quran",
+  url: SITE_URL,
+  inLanguage: ["ar", "en"],
+  description: SITE_DESCRIPTION,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/search?q={search_term_string}` },
+    "query-input": "required name=search_term_string",
+  },
+};
 
 export default async function HomePage() {
   const surahs = await getSurahs();
 
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6">
+      <script
+        type="application/ld+json"
+        // "<" escaped so the JSON can never close the script tag
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
       {/* Title: no frame, accent glow only on hover */}
       <section className="flex justify-center pt-12 pb-10">
         <div className="group relative cursor-default px-6 text-center">
@@ -42,39 +72,18 @@ export default async function HomePage() {
       <ul dir="ltr" className="grid grid-cols-1 gap-3 pb-20 sm:grid-cols-2 lg:grid-cols-3">
         {surahs.map((s) => (
           <li key={s.id}>
-            <Link
-              href={`/surah/${s.id}`}
-              className="glass group flex items-center gap-4 overflow-hidden rounded-xl px-4 py-3.5 transition duration-300 hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(56,189,248,0.25)]"
-            >
-              {/* glow that appears on hover */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -top-16 -left-16 h-36 w-36 rounded-full bg-accent/0 blur-2xl transition duration-500 group-hover:bg-accent/40"
-              />
-
-              {/* Number in a diamond */}
-              <span className="relative grid h-12 w-12 shrink-0 place-items-center">
-                <span
-                  aria-hidden
-                  className="absolute inset-1.5 rotate-45 rounded-lg border border-white/10 bg-white/10 transition duration-300 group-hover:border-accent/50 group-hover:bg-accent/15"
-                />
-                <span className="relative text-sm font-semibold tabular-nums transition group-hover:text-accent">
-                  {s.id}
-                </span>
+            {/* Styles live in globals.css (.surah-card): 114 cards, so short markup keeps the page light */}
+            <Link href={`/surah/${s.id}`} className="surah-card glass">
+              <span className="surah-num">{s.id}</span>
+              <span className="surah-names">
+                <span className="surah-en">{s.name_en}</span>
+                <span className="surah-meaning">{surahMeaning(s.id)}</span>
               </span>
-
-              {/* English name + meaning */}
-              <span className="relative min-w-0 flex-1">
-                <span className="block truncate font-semibold transition group-hover:text-accent">{s.name_en}</span>
-                <span className="block truncate text-xs text-white/40">{surahMeaning(s.id)}</span>
-              </span>
-
-              {/* Arabic name + ayah count */}
-              <span className="relative shrink-0 text-right">
-                <span dir="rtl" className="block font-arabic text-lg leading-tight text-white/90">
+              <span className="surah-ar">
+                <span dir="rtl" className="surah-ar-name">
                   {s.name_ar}
                 </span>
-                <span className="block text-xs text-white/40">{s.ayah_count} Ayahs</span>
+                <span className="surah-count">{s.ayah_count} Ayahs</span>
               </span>
             </Link>
           </li>
