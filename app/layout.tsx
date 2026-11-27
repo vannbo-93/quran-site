@@ -7,14 +7,43 @@ import { Analytics } from "@vercel/analytics/next";
 import { NavAutoHide } from "@/components/NavAutoHide";
 import "./globals.css";
 
+// ---- In app/layout.tsx: replace the `metadata` and `viewport` exports with these ----
+
+// Add this import at the top:
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+
 export const metadata: Metadata = {
-  title: "القرآن الكريم",
-  description: "اقرأ القرآن الكريم بالرسم العثماني",
-  other: { "darkreader-lock": "true" }, // site is already dark: tell Dark Reader to stay off
+  metadataBase: new URL(SITE_URL), // makes share image paths absolute
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "ar_AR",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: "/",
+    images: [
+      {
+        url: "/og/home.jpg",
+        width: 1200,
+        height: 630,
+        alt: "القرآن الكريم — قراءة واستماع وتفسير",
+      },
+    ],
+  },
+  twitter: { card: "summary_large_image", images: ["/og/home.jpg"] },
+  appleWebApp: {
+    title: "القرآن",
+    capable: true,
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport: Viewport = {
   viewportFit: "cover", // lets the controls avoid the iPhone home indicator
+  themeColor: "#000000", // phone browser bar color
 };
 
 export default function RootLayout({
@@ -29,6 +58,8 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${sans.variable} ${serif.variable} ${arabic.variable} ${quranFont.variable} bg-black`}>
       <head>
+        {/* Must be in the first HTML bytes: tells Dark Reader to stay off (the site has its own dark mode) */}
+        <meta name="darkreader-lock" />
         {/* Apply the saved theme before the page paints (prevents a dark flash in light mode) */}
         <script
           dangerouslySetInnerHTML={{
