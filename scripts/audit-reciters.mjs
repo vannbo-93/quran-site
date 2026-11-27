@@ -110,15 +110,7 @@ function clean(raw, expected) {
     seen.add(t.ayah);
   }
   const extra = timings.filter((t) => t.ayah > expected).map((t) => t.ayah);
-  if (extra.length) {
-    const complete = Array.from({ length: expected }, (_, i) => i + 1).every((a) => seen.has(a));
-    if (extra.length === 1 && extra[0] === expected + 1 && complete) {
-      fixes.push(`closing segment (ayah ${extra[0]}) dropped`);
-      timings = timings.filter((t) => t.ayah <= expected);
-    } else {
-      return { timings: null, fixes: [...fixes, `ayahs beyond the end (${extra.join(",")}) → whole surah only`] };
-    }
-  }
+  if (extra.length) return { timings: null, fixes: [...fixes, `ayahs beyond the end (${extra.join(",")}) → whole surah only`] };
   return { timings: timings.length ? timings.sort((x, y) => x.ayah - y.ayah) : null, fixes };
 }
 

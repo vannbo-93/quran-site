@@ -36,18 +36,10 @@ export function cleanTimings(raw: unknown[], expected: number): Timing[] | null 
     seen.add(t.ayah);
   }
 
-  // 4) Ayahs beyond the end of the surah.
-  //    One extra right after the last ayah (a closing segment): drop it.
-  //    More than that (Yusuf by Shuraim: 116 for 111): the whole numbering is off.
-  const extra = timings.filter((t) => t.ayah > expected).map((t) => t.ayah);
-  if (extra.length > 0) {
-    const complete = Array.from({ length: expected }, (_, i) => i + 1).every((a) => seen.has(a));
-    if (extra.length === 1 && extra[0] === expected + 1 && complete) {
-      timings = timings.filter((t) => t.ayah <= expected);
-    } else {
-      return null;
-    }
-  }
+  // 4) Ayahs beyond the end of the surah: some ayah was split in two somewhere,
+  //    so every number after that point is off (Ash-Shams and Yusuf by Shuraim).
+  //    Where the split is can't be known: whole surah only.
+  if (timings.some((t) => t.ayah > expected)) return null;
 
   return timings.length > 0 ? timings.sort((a, b) => a.ayah - b.ayah) : null;
 }
