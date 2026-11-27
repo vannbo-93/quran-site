@@ -55,6 +55,7 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
   const graphRef = useRef<AudioGraph | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const blockedHostsRef = useRef(new Set<string>()); // hosts that refused CORS
+  const webAudioOffRef = useRef(false); // this device can't play through Web Audio: plain players only
 
   const sessionRef = useRef<Session | null>(null);
   const playingElRef = useRef<HTMLElement | null>(null);
@@ -130,6 +131,15 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
     return graphRef.current;
   }
 
+  // iPad / iPhone (every browser there is Safari underneath): an AudioContext only starts
+  // when resumed inside the tap itself. Resumed later (after waiting for the server, as
+  // mp3quran reciters do), it stays suspended: the audio plays but nothing is heard.
+  // Called first thing in every tap handler, before any await.
+  function unlockAudio() {
+    const graph = ensureGraph();
+    if (graph && graph.ctx.state !== "running") graph.ctx.resume().catch(() => {});
+  }
+
   function getPlayer(kind: PlayerKind, index: 0 | 1) {
     const list = playersRef.current[kind];
     if (!list[index]) {
@@ -156,7 +166,8 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
     return list[index];
   }
 
-  const kindForUrl = (url: string): PlayerKind => (blockedHostsRef.current.has(hostOf(url)) ? "plain" : "cors");
+  const kindForUrl = (url: string): PlayerKind =>
+    webAudioOffRef.current || blockedHostsRef.current.has(hostOf(url)) ? "plain" : "cors";
   const kindOf = (audio: HTMLAudioElement): PlayerKind =>
     playersRef.current.cors.includes(audio) ? "cors" : "plain";
 
@@ -182,6 +193,32 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
       // Load errors are handled by the "error" listener; AbortError just means the source changed.
       if (err instanceof DOMException && err.name === "NotAllowedError") stop();
     });
+    watchSilentContext(audio);
+  }
+
+  // Safety net: if the AudioContext still isn't running shortly after playback starts,
+  // the sound would be silent. Move to a plain player at the same position, for good.
+  function watchSilentContext(audio: HTMLAudioElement) {
+    const graph = graphRef.current;
+    if (kindOf(audio) !== "cors" || !graph || graph.ctx.state === "running") return;
+    graph.ctx.resume().catch(() => {});
+    window.setTimeout(() => {
+      if (graph.ctx.state === "running" || activeAudioRef.current !== audio || audio.paused) return;
+      webAudioOffRef.current = true;
+      const position = audio.currentTime;
+      const src = audio.src;
+      audio.pause();
+      const plain = getPlayer("plain", 0);
+      if (standbyRef.current?.audio === plain) standbyRef.current = null;
+      if (plain.src !== src) plain.src = src;
+      const seekTo = () => (plain.currentTime = position);
+      if (plain.readyState >= 1) seekTo();
+      else plain.addEventListener("loadedmetadata", seekTo, { once: true });
+      activate(plain);
+      startPlayback(plain);
+      // The next ayah was preloaded in a Web Audio player: load it again in a plain one
+      if (sessionRef.current?.kind === "ayah" && playingElRef.current) prepareNext(playingElRef.current);
+    }, 600);
   }
 
   function playUrl(url: string, startSeconds: number, retry: () => void) {
@@ -224,6 +261,7 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
   }
 
   function resume() {
+    unlockAudio();
     const session = sessionRef.current;
     const audio = activeAudioRef.current;
     if (!session || !audio) {
@@ -405,6 +443,7 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
 
   // Jump to a point of the surah (0..1); starts the surah there if it isn't playing
   function seek(fraction: number) {
+    unlockAudio();
     const f = clamp(fraction, 0, 0.999);
     const session = sessionRef.current;
     const audio = activeAudioRef.current;
@@ -443,6 +482,7 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
 
   // The whole surah from a point (0 = beginning), without gaps between ayahs
   async function playSurah(fraction = 0) {
+    unlockAudio(); // before the await below
     const ayahs = allAyahs();
     if (ayahs.length === 0) return;
     const reciter = currentReciter();
@@ -494,6 +534,7 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
 
   // Click on an ayah: that ayah only, then stop
   async function playSingle(el: HTMLElement) {
+    unlockAudio(); // before the await below
     const reciter = currentReciter();
     clearNotice();
     setContinuousMode(false);
