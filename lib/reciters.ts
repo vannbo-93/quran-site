@@ -43,4 +43,5 @@ export const everyAyahUrl = (folder: string, surah: number, ayah: number) =>
 export const surahFileUrl = (server: string, surah: number) => `${server}${pad3(surah)}.mp3`;
 
 export type Timing = { ayah: number; start: number; end: number }; // milliseconds
-export type AudioInfo = { available: boolean; url?: string; timings?: Timing[] };
+// failed: the audio server couldn't be reached (temporary) — not the same as "not recorded"
+export type AudioInfo = { available: boolean; url?: string; timings?: Timing[]; failed?: boolean };

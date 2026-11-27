@@ -3,14 +3,19 @@ import { getReciter, RECITERS, surahFileUrl, type AudioInfo, type Timing } from 
 
 const API = "https://mp3quran.net/api/v3";
 
+// Failures THROW instead of returning an empty result:
+// "use cache" keeps whatever is returned, so an empty result after a temporary
+// mp3quran error would make that surah "unavailable" until the next deploy.
+// A thrown error is not cached: the next request simply tries again.
+
 // Per-ayah start/end times inside the surah file (milliseconds)
 async function getTimings(readId: number, surah: number): Promise<Timing[]> {
   "use cache";
   cacheLife("max");
   const res = await fetch(`${API}/ayat_timing?surah=${surah}&read=${readId}`);
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error(`mp3quran timings ${res.status} (read ${readId}, surah ${surah})`);
   const data: unknown = await res.json();
-  if (!Array.isArray(data)) return [];
+  if (!Array.isArray(data)) throw new Error(`mp3quran timings: unexpected response (read ${readId}, surah ${surah})`);
   return data
     .filter((t) => Number(t?.ayah) > 0) // ayah 0 = intro / basmala
     .map((t) => ({ ayah: Number(t.ayah), start: Number(t.start_time), end: Number(t.end_time) }))
@@ -22,7 +27,7 @@ async function getSurahList(mp3quranId: number, server: string): Promise<number[
   "use cache";
   cacheLife("days");
   const res = await fetch(`${API}/reciters?language=ar&reciter=${mp3quranId}`);
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error(`mp3quran reciters ${res.status} (reciter ${mp3quranId})`);
   const data = await res.json();
   const moshafs: { server?: string; surah_list?: string }[] = data?.reciters?.[0]?.moshaf ?? [];
   const moshaf = moshafs.find((m) => m.server === server) ?? moshafs[0];

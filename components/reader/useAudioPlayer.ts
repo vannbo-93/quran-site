@@ -358,13 +358,13 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
     const key = `${reciterId}:${surah}`;
     let info = infoCacheRef.current.get(key);
     if (!info) {
-      const unavailable = (): AudioInfo => {
+      const failed = (): AudioInfo => {
         infoCacheRef.current.delete(key); // don't remember failures: retry next time
-        return { available: false };
+        return { available: false, failed: true };
       };
       info = fetch(`/api/audio-info?reciter=${encodeURIComponent(reciterId)}&surah=${surah}`)
-        .then((res) => (res.ok ? (res.json() as Promise<AudioInfo>) : unavailable()))
-        .catch(unavailable);
+        .then((res) => (res.ok ? (res.json() as Promise<AudioInfo>) : failed()))
+        .catch(failed);
       infoCacheRef.current.set(key, info);
     }
     return info;
@@ -503,7 +503,11 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
 
     if (!info.available || !info.url) {
       stop();
-      showNotice(`هذه السورة غير متوفرة بصوت ${reciter.name}`);
+      showNotice(
+        info.failed
+          ? "تعذّر الاتصال بخادم التلاوات، حاول مرة أخرى"
+          : `هذه السورة غير متوفرة بصوت ${reciter.name}`,
+      );
       return;
     }
 
@@ -555,7 +559,11 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
     if (!info) return;
     if (!info.available || !info.url) {
       stop();
-      showNotice(`هذه السورة غير متوفرة بصوت ${reciter.name}`);
+      showNotice(
+        info.failed
+          ? "تعذّر الاتصال بخادم التلاوات، حاول مرة أخرى"
+          : `هذه السورة غير متوفرة بصوت ${reciter.name}`,
+      );
       return;
     }
     const timing = info.timings?.find((t) => t.ayah === Number(el.dataset.ayah));
