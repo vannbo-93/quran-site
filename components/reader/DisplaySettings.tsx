@@ -32,6 +32,12 @@ export function DisplaySettings({ prefs, update }: { prefs: Prefs; update: Updat
         </>
       )}
 
+      <SettingRow label="ألوان التجويد">
+        <ToolButton active={prefs.tajweed} onClick={() => update({ tajweed: !prefs.tajweed })}>
+          {prefs.tajweed ? "ظاهرة" : "مخفية"}
+        </ToolButton>
+      </SettingRow>
+
       <SettingRow label="الصوت">
         <VolumeControl prefs={prefs} update={update} />
       </SettingRow>

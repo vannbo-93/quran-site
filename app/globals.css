@@ -511,3 +511,134 @@ body:has(.reader) .site-footer {
     rgb(var(--fg) / 0.15) var(--fill, 0%) 100%
   );
 }
+
+/* ---------- Tajweed colors ---------- */
+:root {
+  --tj-silent: #8e939c;
+  --tj-madd2: #f9a8d4;
+  --tj-madd-jaiz: #fb923c;
+  --tj-madd-wajib: #fb7185;
+  --tj-madd-lazim: #ef4444;
+  --tj-ghunnah: #4ade80;
+  --tj-qalqalah: #22d3ee;
+}
+[data-theme="light"] {
+  --tj-silent: #8a8f98;
+  --tj-madd2: #db2777;
+  --tj-madd-jaiz: #ea580c;
+  --tj-madd-wajib: #e11d48;
+  --tj-madd-lazim: #b91c1c;
+  --tj-ghunnah: #16a34a;
+  --tj-qalqalah: #0891b2;
+}
+
+/* Colors show only when the reader turns tajweed on */
+.reader[data-tajweed="on"] .tj-silent {
+  color: var(--tj-silent);
+}
+.reader[data-tajweed="on"] .tj-madd2 {
+  color: var(--tj-madd2);
+}
+.reader[data-tajweed="on"] .tj-madd-jaiz {
+  color: var(--tj-madd-jaiz);
+}
+.reader[data-tajweed="on"] .tj-madd-wajib {
+  color: var(--tj-madd-wajib);
+}
+.reader[data-tajweed="on"] .tj-madd-lazim {
+  color: var(--tj-madd-lazim);
+}
+.reader[data-tajweed="on"] .tj-ghunnah {
+  color: var(--tj-ghunnah);
+}
+.reader[data-tajweed="on"] .tj-qalqalah {
+  color: var(--tj-qalqalah);
+}
+
+/* ---------- Tajweed colors (same palette as the reference) ---------- */
+:root {
+  --tj-silent: #999999;
+  --tj-madd2: #ffc1e0;
+  --tj-madd-jaiz: #ff8e3b;
+  --tj-madd-wajib: #ff5e8e;
+  --tj-madd-lazim: #e30000;
+  --tj-ghunnah: #26b55d;
+  --tj-qalqalah: #00deff;
+  --tj-bar: #1f2125;
+  --tj-tab: #16181b;
+  --tj-text: #ffffff;
+}
+/* Light theme: same hues, darker where the light ones vanish on white */
+[data-theme="light"] {
+  --tj-silent: #8c8c8c;
+  --tj-madd2: #e46aa7;
+  --tj-madd-jaiz: #f07a1a;
+  --tj-madd-wajib: #e8336b;
+  --tj-madd-lazim: #d00000;
+  --tj-ghunnah: #1e9e4f;
+  --tj-qalqalah: #00a3c2;
+  --tj-bar: #f1f2f4;
+  --tj-tab: #e4e6ea;
+  --tj-text: #16161a;
+}
+
+/* Colors show only when the reader turns tajweed on */
+.reader[data-tajweed="on"] .tj-silent {
+  color: var(--tj-silent);
+}
+.reader[data-tajweed="on"] .tj-madd2 {
+  color: var(--tj-madd2);
+}
+.reader[data-tajweed="on"] .tj-madd-jaiz {
+  color: var(--tj-madd-jaiz);
+}
+.reader[data-tajweed="on"] .tj-madd-wajib {
+  color: var(--tj-madd-wajib);
+}
+.reader[data-tajweed="on"] .tj-madd-lazim {
+  color: var(--tj-madd-lazim);
+}
+.reader[data-tajweed="on"] .tj-ghunnah {
+  color: var(--tj-ghunnah);
+}
+.reader[data-tajweed="on"] .tj-qalqalah {
+  color: var(--tj-qalqalah);
+}
+
+/* Legend bar */
+.tj-bar {
+  background: var(--tj-bar);
+  color: var(--tj-text);
+}
+.tj-tab {
+  background: var(--tj-tab);
+  color: var(--tj-text);
+}
+.tj-dot {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  border-radius: 999px;
+}
+.tj-dot-silent {
+  background: var(--tj-silent);
+}
+.tj-dot-madd2 {
+  background: var(--tj-madd2);
+}
+.tj-dot-madd-jaiz {
+  background: var(--tj-madd-jaiz);
+}
+.tj-dot-madd-wajib {
+  background: var(--tj-madd-wajib);
+}
+.tj-dot-madd-lazim {
+  background: var(--tj-madd-lazim);
+}
+.tj-dot-ghunnah {
+  background: var(--tj-ghunnah);
+}
+.tj-dot-qalqalah {
+  background: var(--tj-qalqalah);
+}

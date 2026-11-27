@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "عن الموقع والمصادر — القرآن الكريم",
+  description:
+    "مصادر نص القرآن الكريم والترجمة والتفسير والتلاوات وألوان التجويد المستعملة في الموقع، وتراخيصها.",
 };
 
 const SOURCES = [
@@ -41,6 +43,14 @@ const SOURCES = [
     source: "MP3Quran.net",
     href: "https://mp3quran.net",
     license: "",
+  },
+  {
+    title: "ألوان التجويد",
+    detail:
+      "مولَّدة آليًا ومُطابَقة مع نص Tanzil المعروض في الموقع، ولم يراجعها مختص. للاستئناس البصري، لا مرجعًا لتعلّم أحكام التجويد. بعض الآيات تظهر بلا ألوان، ولا يشمل التلوين التفخيم.",
+    source: "cpfair/quran-tajweed",
+    href: "https://github.com/cpfair/quran-tajweed",
+    license: "CC BY 4.0",
   },
 ];
 

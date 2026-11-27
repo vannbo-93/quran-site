@@ -56,6 +56,10 @@ export default function RootLayout({
           <br />
           At-Tafsir Al-Muyassar (King Fahd Complex), via Tanzil — non-commercial
           use
+          <p>
+            Tajweed colors: cpfair/quran-tajweed — CC BY 4.0 (automatically
+            generated)
+          </p>
         </footer>
         <Analytics />
       </body>

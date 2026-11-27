@@ -94,6 +94,9 @@ export function Toolbar({
             </ToolButton>
           </>
         )}
+        <ToolButton active={prefs.tajweed} onClick={() => update({ tajweed: !prefs.tajweed })}>
+          تجويد
+        </ToolButton>
         <Divider />
         <VolumeControl prefs={prefs} update={update} />
         <Divider />

@@ -5,6 +5,7 @@ import { PauseIcon, PlayIcon, StopIcon } from "./icons";
 import { SIZES, savePrefs, usePrefs, type UpdatePrefs } from "./prefs";
 import { shareAyah } from "./share";
 import { SurahProgress } from "./SurahProgress";
+import { TajweedLegend } from "./TajweedLegend";
 import { Toolbar } from "./Toolbar";
 import { useAudioPlayer } from "./useAudioPlayer";
 import { useDeepLink } from "./useDeepLink";
@@ -58,6 +59,14 @@ export function Reader({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      {/* Always present: only folds and unfolds, never disappears */}
+      <TajweedLegend
+        open={prefs.legend}
+        colors={prefs.tajweed}
+        onToggleOpen={() => update({ legend: !prefs.legend })}
+        onToggleColors={() => update({ tajweed: !prefs.tajweed })}
+      />
+
       <div
         ref={readerRef}
         className="reader"
@@ -67,6 +76,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
         data-reciter={prefs.reciter}
         data-volume={prefs.muted ? 0 : prefs.volume}
         data-speed={prefs.speed}
+        data-tajweed={prefs.tajweed ? "on" : "off"}
         style={{ "--quran-size": `${SIZES[prefs.size]}rem` } as React.CSSProperties}
         onClick={handleClick}
         onKeyDown={handleKeyDown}

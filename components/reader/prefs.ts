@@ -19,6 +19,8 @@ export type Prefs = {
   volume: number; // 0..1
   muted: boolean;
   speed: number; // playback rate
+  tajweed: boolean; // tajweed colors
+  legend: boolean; // tajweed color key open under the navbar
 };
 export type UpdatePrefs = (change: Partial<Prefs>) => void;
 
@@ -31,6 +33,8 @@ const DEFAULTS: Prefs = {
   volume: 1,
   muted: false,
   speed: 1,
+  tajweed: true,
+  legend: true,
 };
 
 const STORAGE_KEY = "reader-prefs";
@@ -90,6 +94,8 @@ function parsePrefs(raw: string): Prefs {
         typeof saved?.speed === "number" && saved.speed >= SPEED_MIN && saved.speed <= SPEED_MAX
           ? saved.speed
           : DEFAULTS.speed,
+      tajweed: typeof saved?.tajweed === "boolean" ? saved.tajweed : DEFAULTS.tajweed,
+      legend: typeof saved?.legend === "boolean" ? saved.legend : DEFAULTS.legend,
     };
   } catch {
     return DEFAULTS;
