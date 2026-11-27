@@ -677,3 +677,95 @@ header.sticky[data-hidden="true"] {
     transition: none;
   }
 }
+/* ---------- Bookmarks ---------- */
+.ayah-bookmark,
+.ayah-bookmark-mushaf {
+  display: none;
+}
+
+/* Cards mode: save + share in one row, centered on the first line of the ayah */
+.reader[data-mode="cards"] .ayah-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: calc((var(--quran-size, 2.25rem) * 2.3 - 2rem) / 2);
+}
+.reader[data-mode="cards"] .ayah-actions .ayah-share {
+  align-self: auto; /* the row aligns both buttons */
+}
+.reader[data-mode="cards"] .ayah-bookmark {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  color: rgb(var(--fg) / 0.3);
+  transition:
+    color 0.3s,
+    background-color 0.3s;
+}
+.reader[data-mode="cards"] .ayah:hover .ayah-bookmark {
+  color: rgb(var(--fg) / 0.6);
+}
+.reader[data-mode="cards"] .ayah-bookmark:hover {
+  color: var(--color-accent);
+  background: rgb(var(--fg) / 0.06);
+}
+
+/* Mushaf mode: small button above the ayah number (no reflow of the text).
+   Shows on hover, on the playing ayah (phones: tap the ayah first), and on saved ayahs. */
+.reader[data-mode="mushaf"] .ayah-num {
+  position: relative;
+}
+.reader[data-mode="mushaf"] .ayah-bookmark-mushaf {
+  position: absolute;
+  bottom: 78%;
+  left: 50%;
+  translate: -50% 0;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  line-height: 1;
+  color: rgb(var(--fg) / 0.55);
+  background: var(--color-black);
+  border: 1px solid rgb(var(--fg) / 0.15);
+}
+.reader[data-mode="mushaf"] .ayah:hover .ayah-bookmark-mushaf,
+.reader[data-mode="mushaf"] .ayah.is-playing .ayah-bookmark-mushaf,
+.reader[data-mode="mushaf"] .ayah[data-saved] .ayah-bookmark-mushaf,
+.reader[data-mode="mushaf"] .ayah-bookmark-mushaf:focus-visible {
+  display: grid;
+}
+.reader[data-mode="mushaf"] .ayah-bookmark-mushaf:hover {
+  color: var(--color-accent);
+  border-color: rgb(var(--accent-rgb) / 0.6);
+}
+
+/* Saved: filled ribbon in the accent color */
+.ayah[data-saved] .ayah-bookmark,
+.ayah[data-saved] .ayah-bookmark-mushaf {
+  color: var(--color-accent);
+}
+.ayah[data-saved] .ayah-bookmark svg,
+.ayah[data-saved] .ayah-bookmark-mushaf svg {
+  fill: currentColor;
+}
+.reader[data-mode="mushaf"] .ayah[data-saved] .ayah-bookmark-mushaf {
+  border-color: rgb(var(--accent-rgb) / 0.5);
+}
+
+@media (max-width: 639px) {
+  .reader[data-mode="cards"] .ayah-actions {
+    gap: 0.125rem;
+    margin-top: calc((var(--quran-size, 2.25rem) * 0.72 * 2.3 - 1.75rem) / 2);
+  }
+  .reader[data-mode="cards"] .ayah-bookmark {
+    width: 1.75rem;
+    height: 1.75rem;
+    color: rgb(var(--fg) / 0.45); /* no hover on phones: keep it visible */
+  }
+}

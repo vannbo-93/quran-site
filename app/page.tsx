@@ -3,6 +3,7 @@ import { getSurahs } from "@/lib/quran";
 import { surahMeaning } from "@/lib/surahMeanings";
 import { SearchBox } from "@/components/SearchBox";
 import { ContinueReading } from "@/components/ContinueReading";
+import { SurahPicker } from "@/components/SurahPicker";
 
 export default async function HomePage() {
   const surahs = await getSurahs();
@@ -34,7 +35,7 @@ export default async function HomePage() {
       {/* Section header */}
       <div dir="ltr" className="mb-8 flex items-end justify-between border-b border-white/10 pb-4">
         <h2 className="text-4xl font-medium tracking-tight md:text-5xl">Surahs</h2>
-        <span className="text-sm text-white/40">114</span>
+        <SurahPicker surahs={surahs.map(({ id, name_ar, name_en }) => ({ id, name_ar, name_en }))} />
       </div>
 
       {/* Surah grid: 1 / 2 / 3 per row */}

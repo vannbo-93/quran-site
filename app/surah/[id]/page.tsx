@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Reader } from "@/components/reader/Reader";
 import { TajweedText } from "@/components/TajweedText";
+import { BookmarkIcon } from "@/components/BookmarkIcon";
+import { SurahBookmarkButton } from "@/components/SurahBookmarkButton";
 import {
   displayText,
   getBasmala,
@@ -71,6 +73,9 @@ async function SurahContent({ params }: { params: Params }) {
         <p dir="ltr" className="mt-1 text-3xl font-medium tracking-tight md:text-4xl">
           <span className="font-serif font-normal italic text-white/50">Surah</span> {surah.name_en}
         </p>
+        <div className="mt-5 flex justify-center">
+          <SurahBookmarkButton surah={surah.id} name={surah.name_ar} nameEn={surah.name_en} />
+        </div>
       </header>
 
       <Reader>
@@ -107,21 +112,45 @@ async function SurahContent({ params }: { params: Params }) {
                   </span>
                 )}
               </span>
-              <span className="ayah-num">{toArabicDigits(a.ayah_number)}</span>
-              <button
-                type="button"
-                data-share
-                className="ayah-share"
-                aria-label={`مشاركة الآية ${a.ayah_number}`}
-                title="مشاركة الآية"
-              >
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <circle cx="18" cy="5" r="3" />
-                  <circle cx="6" cy="12" r="3" />
-                  <circle cx="18" cy="19" r="3" />
-                  <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
-                </svg>
-              </button>
+              <span className="ayah-num">
+                {toArabicDigits(a.ayah_number)}
+                {/* Mushaf mode: small save button above the ayah number */}
+                <button
+                  type="button"
+                  data-bookmark
+                  className="ayah-bookmark-mushaf"
+                  aria-label={`حفظ الآية ${a.ayah_number}`}
+                  title="حفظ الآية"
+                >
+                  <BookmarkIcon className="h-3 w-3" />
+                </button>
+              </span>
+              {/* Cards mode: save + share, side by side */}
+              <span className="ayah-actions">
+                <button
+                  type="button"
+                  data-bookmark
+                  className="ayah-bookmark"
+                  aria-label={`حفظ الآية ${a.ayah_number}`}
+                  title="حفظ الآية"
+                >
+                  <BookmarkIcon />
+                </button>
+                <button
+                  type="button"
+                  data-share
+                  className="ayah-share"
+                  aria-label={`مشاركة الآية ${a.ayah_number}`}
+                  title="مشاركة الآية"
+                >
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
+                  </svg>
+                </button>
+              </span>
             </span>
           ))}
         </div>

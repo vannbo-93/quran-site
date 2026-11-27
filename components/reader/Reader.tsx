@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
+import { isAyahSaved, toggleAyah, useBookmarks } from "@/lib/bookmarks";
 import { PauseIcon, PlayIcon, StopIcon } from "./icons";
 import { SIZES, savePrefs, usePrefs, type UpdatePrefs } from "./prefs";
 import { shareAyah } from "./share";
@@ -18,7 +19,24 @@ export function Reader({ children }: { children: React.ReactNode }) {
   const prefs = usePrefs();
   const { notice, showNotice, clearNotice } = useNotice();
   const player = useAudioPlayer({ readerRef, showNotice, clearNotice });
+  const bookmarks = useBookmarks();
   useDeepLink(readerRef);
+
+  // Mark saved ayahs (filled bookmark icon) whenever the saved list changes
+  useEffect(() => {
+    const root = readerRef.current;
+    const surah = Number(root?.querySelector<HTMLElement>("[data-surah]")?.dataset.surah);
+    root?.querySelectorAll<HTMLElement>("[data-ayah]").forEach((el) => {
+      const saved = isAyahSaved(bookmarks, surah, Number(el.dataset.ayah));
+      el.toggleAttribute("data-saved", saved);
+      el.querySelectorAll<HTMLElement>("[data-bookmark]").forEach((button) => {
+        button.setAttribute("aria-pressed", String(saved));
+        const label = saved ? `إزالة الآية ${el.dataset.ayah} من المحفوظات` : `حفظ الآية ${el.dataset.ayah}`;
+        button.setAttribute("aria-label", label);
+        button.title = saved ? "إزالة من المحفوظات" : "حفظ الآية";
+      });
+    });
+  }, [bookmarks]);
   useLastRead(readerRef);
 
   const playLabel = player.playing
@@ -36,7 +54,24 @@ export function Reader({ children }: { children: React.ReactNode }) {
     if ("speed" in change) player.applySpeed(next.speed);
   };
 
+  function saveAyah(el: HTMLElement) {
+    const holder = el.closest<HTMLElement>("[data-surah]");
+    const now = toggleAyah({
+      surah: Number(holder?.dataset.surah),
+      ayah: Number(el.dataset.ayah),
+      surahName: holder?.dataset.surahName ?? "",
+      text: el.querySelector(".ayah-text")?.textContent?.trim() ?? "",
+    });
+    showNotice(now ? "حُفظت الآية" : "أُزيلت الآية من المحفوظات");
+  }
+
   function handleClick(e: React.MouseEvent<HTMLDivElement>) {
+    const bookmarkButton = (e.target as HTMLElement).closest<HTMLElement>("[data-bookmark]");
+    if (bookmarkButton) {
+      const el = bookmarkButton.closest<HTMLElement>("[data-ayah]");
+      if (el) saveAyah(el);
+      return; // don't play the ayah
+    }
     const shareButton = (e.target as HTMLElement).closest<HTMLElement>("[data-share]");
     if (shareButton) {
       const el = shareButton.closest<HTMLElement>("[data-ayah]");
@@ -50,7 +85,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key !== "Enter" && e.key !== " ") return;
-    if ((e.target as HTMLElement).closest("[data-share]")) return; // the share button handles itself
+    if ((e.target as HTMLElement).closest("[data-share], [data-bookmark]")) return; // the buttons handle themselves
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-ayah]");
     if (!el) return;
     e.preventDefault();
