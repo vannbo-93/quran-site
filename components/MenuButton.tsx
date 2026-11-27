@@ -52,12 +52,14 @@ export function MenuButton() {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-controls="site-menu"
-        className={`flex items-center gap-2 rounded-md border px-4 py-2 tracking-widest transition hover:bg-white/20 ${
+        aria-label={open ? "إغلاق القائمة" : "القائمة"}
+        className={`flex h-9 items-center justify-center gap-2 rounded-md border px-2.5 tracking-widest transition hover:bg-white/20 sm:px-4 ${
           open
             ? "border-accent/60 bg-white/15 text-accent"
             : "border-white/15 bg-white/10"
         }`}>
-        <span className="text-base leading-none">{open ? "✕" : "☰"}</span> MENU
+        <span className="text-base leading-none">{open ? "✕" : "☰"}</span>
+        <span className="hidden sm:inline">MENU</span>
       </button>
 
       {open && (
