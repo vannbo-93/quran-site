@@ -42,7 +42,7 @@ export async function generateMetadata({
     surah.revelation_place === "makkah" ? "مكية" : "مدنية"
   }) واستمع إليها، مع الترجمة الإنجليزية والتفسير الميسر وألوان التجويد.`;
   const image = {
-    url: `/og/surah-${surah.id}.jpg`,
+    url: `/og/surah-${surah.id}.jpg?v=2`,
     width: 1200,
     height: 630,
     alt: `سورة ${surah.name_ar}`,

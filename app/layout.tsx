@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     locale: "ar_AR",
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
-    url: "/",
+    url: "/og/home.jpg?v=2",
     images: [
       {
         url: "/og/home.jpg",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
       },
     ],
   },
-  twitter: { card: "summary_large_image", images: ["/og/home.jpg"] },
+  twitter: { card: "summary_large_image", images: ["/og/home.jpg?v=2"] },
   appleWebApp: {
     title: "القرآن",
     capable: true,
