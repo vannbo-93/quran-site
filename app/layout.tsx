@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import { Navbar } from "@/components/Navbar";
 import { arabic, quranFont, sans, serif } from "@/lib/fonts";
 import { Analytics } from "@vercel/analytics/next";
+import { NavAutoHide } from "@/components/NavAutoHide";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -45,6 +46,7 @@ export default function RootLayout({
           <div className="absolute top-1/2 -right-40 h-[380px] w-[380px] rounded-full bg-white/[0.03] blur-[120px]" />
         </div>
         <Navbar />
+        <NavAutoHide />
         {children}
         <footer
           dir="ltr"

@@ -85,7 +85,7 @@ export function Reader({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Floating controls */}
-      <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-3">
+      <div className="reader-controls fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-3">
         {notice && (
           <p role="status" className="rounded-full border border-white/15 bg-black px-4 py-2 font-arabic text-xs text-white/80">
             {notice}

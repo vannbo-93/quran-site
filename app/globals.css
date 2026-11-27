@@ -642,3 +642,38 @@ body:has(.reader) .site-footer {
 .tj-dot-qalqalah {
   background: var(--tj-qalqalah);
 }
+
+/* ---------- Smooth scrolling on the reader page ---------- */
+/* backdrop-filter re-blurs everything behind an element on every scroll frame.
+   Over a plain black page it adds nothing visible, so the reader drops it. */
+
+/* 1) Ayah cards: no blur and no noise texture (hundreds of cards in long surahs) */
+.reader .ayah.glass {
+  backdrop-filter: none;
+}
+.reader .ayah.glass::after {
+  display: none;
+}
+
+/* 2) Elements fixed above the scrolling text: solid background instead of live blur */
+.reader-controls .glass {
+  backdrop-filter: none;
+  background: color-mix(in srgb, var(--color-black) 88%, transparent);
+}
+body:has(.reader) header.sticky {
+  backdrop-filter: none;
+  background: color-mix(in srgb, var(--color-black) 92%, transparent);
+}
+
+/* ---------- Navbar: hides while scrolling down, returns when scrolling up ---------- */
+header.sticky {
+  transition: transform 0.3s ease;
+}
+header.sticky[data-hidden="true"] {
+  transform: translateY(-100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  header.sticky {
+    transition: none;
+  }
+}
