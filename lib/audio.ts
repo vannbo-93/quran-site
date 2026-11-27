@@ -1,4 +1,6 @@
 import { cacheLife } from "next/cache";
+import { AYAH_COUNTS } from "@/lib/ayahCounts";
+import { cleanTimings } from "@/lib/timings";
 import { getReciter, RECITERS, surahFileUrl, type AudioInfo, type Timing } from "@/lib/reciters";
 
 const API = "https://mp3quran.net/api/v3";
@@ -8,18 +10,16 @@ const API = "https://mp3quran.net/api/v3";
 // mp3quran error would make that surah "unavailable" until the next deploy.
 // A thrown error is not cached: the next request simply tries again.
 
-// Per-ayah start/end times inside the surah file (milliseconds)
-async function getTimings(readId: number, surah: number): Promise<Timing[]> {
+// Per-ayah start/end times inside the surah file (milliseconds), cleaned (see lib/timings.ts).
+// null: mp3quran's timings for this surah can't be trusted → whole surah only.
+async function getTimings(readId: number, surah: number): Promise<Timing[] | null> {
   "use cache";
   cacheLife("max");
   const res = await fetch(`${API}/ayat_timing?surah=${surah}&read=${readId}`);
   if (!res.ok) throw new Error(`mp3quran timings ${res.status} (read ${readId}, surah ${surah})`);
   const data: unknown = await res.json();
   if (!Array.isArray(data)) throw new Error(`mp3quran timings: unexpected response (read ${readId}, surah ${surah})`);
-  return data
-    .filter((t) => Number(t?.ayah) > 0) // ayah 0 = intro / basmala
-    .map((t) => ({ ayah: Number(t.ayah), start: Number(t.start_time), end: Number(t.end_time) }))
-    .filter((t) => Number.isFinite(t.start) && Number.isFinite(t.end) && t.end > t.start);
+  return cleanTimings(data, AYAH_COUNTS[surah - 1]);
 }
 
 // Which surahs a whole-surah reciter has recorded
@@ -42,10 +42,10 @@ export async function getAudioInfo(reciterId: string, surah: number): Promise<Au
   const reciter = getReciter(reciterId);
 
   if (reciter.kind === "timed") {
+    // Every surah file exists for these reciters (checked by scripts/audit-reciters.mjs).
+    // Without trustworthy timings the surah still plays whole.
     const timings = await getTimings(reciter.readId, surah);
-    return timings.length > 0
-      ? { available: true, url: surahFileUrl(reciter.server, surah), timings }
-      : { available: false };
+    return { available: true, url: surahFileUrl(reciter.server, surah), ...(timings ? { timings } : {}) };
   }
 
   if (reciter.kind === "surah") {

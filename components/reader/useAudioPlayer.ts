@@ -566,7 +566,11 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
       );
       return;
     }
-    const timing = info.timings?.find((t) => t.ayah === Number(el.dataset.ayah));
+    if (!info.timings?.length) {
+      showNotice(`${reciter.name}: هذه السورة متوفرة بالتلاوة الكاملة فقط، استعمل زر التشغيل`);
+      return;
+    }
+    const timing = info.timings.find((t) => t.ayah === Number(el.dataset.ayah));
     if (!timing) {
       showNotice("توقيت هذه الآية غير متوفر");
       return;
