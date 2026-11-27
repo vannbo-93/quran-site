@@ -283,63 +283,81 @@ export function useAudioPlayer({ readerRef, showNotice, clearNotice }: Options) 
   }
 
   // ---- entry points ----
-  async function play(el: HTMLElement, fromStart: boolean, continuousPlay: boolean) {
+  // Fetch the surah file + timings; null when this request became stale
+  async function fetchInfo(reciterId: string) {
+    const requestId = ++requestIdRef.current;
+    const info = await loadInfo(reciterId, currentSurah());
+    return requestId === requestIdRef.current ? info : null;
+  }
+
+  // Play button: the whole surah, without gaps between ayahs
+  async function playSurah() {
+    const first = readerRef.current?.querySelector<HTMLElement>("[data-ayah]");
+    if (!first) return;
     const reciter = currentReciter();
     clearNotice();
 
+    // EveryAyah reciter: chain the ayah files
     if (reciter.kind === "ayah") {
       requestIdRef.current++;
-      setContinuousMode(continuousPlay);
-      startEveryAyah(el);
-      if (continuousPlay) keepInView(el);
+      setContinuousMode(true);
+      startEveryAyah(first);
+      keepInView(first);
+      return;
+    }
+
+    const info = await fetchInfo(reciter.id);
+    if (!info) return; // another click happened meanwhile
+
+    if (info.available && info.url) {
+      setContinuousMode(true);
+      startFile(info, 0, null, null); // one file from the beginning (includes the basmala)
+      return;
+    }
+    stop();
+    showNotice(`هذه السورة غير متوفرة بصوت ${reciter.name}`);
+  }
+
+  // Click on an ayah: that ayah only, then stop
+  async function playSingle(el: HTMLElement) {
+    const reciter = currentReciter();
+    clearNotice();
+    setContinuousMode(false);
+
+    if (reciter.kind === "ayah") {
+      requestIdRef.current++;
+      startEveryAyah(el); // its own short file
       return;
     }
 
     // Whole-surah reciters have no ayah timings: only the play button works
-    if (reciter.kind === "surah" && !fromStart) {
+    if (reciter.kind === "surah") {
       showNotice(`${reciter.name}: متوفر بالسورة كاملة فقط، استعمل زر التشغيل`);
       return;
     }
 
-    const requestId = ++requestIdRef.current;
-    const surah = currentSurah();
-    const info = await loadInfo(reciter.id, surah);
-    if (requestId !== requestIdRef.current) return; // another click happened meanwhile
-
+    const info = await fetchInfo(reciter.id);
+    if (!info) return;
     if (!info.available || !info.url) {
       stop();
       showNotice(`هذه السورة غير متوفرة بصوت ${reciter.name}`);
       return;
     }
-
-    setContinuousMode(continuousPlay);
-
-    if (reciter.kind === "surah" || fromStart) {
-      startFile(info, 0, null, null); // whole surah from the beginning (includes the basmala)
-      return;
-    }
-
     const timing = info.timings?.find((t) => t.ayah === Number(el.dataset.ayah));
     if (!timing) {
       showNotice("توقيت هذه الآية غير متوفر");
       return;
     }
-    startFile(info, timing.start, continuousPlay ? null : timing.end, el);
-    if (continuousPlay) keepInView(el);
+    startFile(info, timing.start, timing.end, el); // stop at the end of the ayah
   }
 
-  function playSurah() {
-    const first = readerRef.current?.querySelector<HTMLElement>("[data-ayah]");
-    if (first) play(first, true, true);
-  }
-
-  // Click on an ayah: play it, or stop if it is the one playing
+  // Click on an ayah: play it alone, or stop if it is the one playing alone
   function playAyah(el: HTMLElement) {
-    if (playing && playingElRef.current === el) {
+    if (playing && !continuousRef.current && playingElRef.current === el) {
       stop();
       return;
     }
-    play(el, false, continuousRef.current);
+    playSingle(el);
   }
 
   // Stop everything when leaving the page

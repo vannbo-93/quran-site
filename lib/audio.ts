@@ -1,13 +1,5 @@
-/** @format */
-
 import { cacheLife } from "next/cache";
-import {
-  getReciter,
-  RECITERS,
-  surahFileUrl,
-  type AudioInfo,
-  type Timing,
-} from "@/lib/reciters";
+import { getReciter, RECITERS, surahFileUrl, type AudioInfo, type Timing } from "@/lib/reciters";
 
 const API = "https://mp3quran.net/api/v3";
 
@@ -21,29 +13,18 @@ async function getTimings(readId: number, surah: number): Promise<Timing[]> {
   if (!Array.isArray(data)) return [];
   return data
     .filter((t) => Number(t?.ayah) > 0) // ayah 0 = intro / basmala
-    .map((t) => ({
-      ayah: Number(t.ayah),
-      start: Number(t.start_time),
-      end: Number(t.end_time),
-    }))
-    .filter(
-      (t) =>
-        Number.isFinite(t.start) && Number.isFinite(t.end) && t.end > t.start,
-    );
+    .map((t) => ({ ayah: Number(t.ayah), start: Number(t.start_time), end: Number(t.end_time) }))
+    .filter((t) => Number.isFinite(t.start) && Number.isFinite(t.end) && t.end > t.start);
 }
 
 // Which surahs a whole-surah reciter has recorded
-async function getSurahList(
-  mp3quranId: number,
-  server: string,
-): Promise<number[]> {
+async function getSurahList(mp3quranId: number, server: string): Promise<number[]> {
   "use cache";
   cacheLife("days");
   const res = await fetch(`${API}/reciters?language=ar&reciter=${mp3quranId}`);
   if (!res.ok) return [];
   const data = await res.json();
-  const moshafs: { server?: string; surah_list?: string }[] =
-    data?.reciters?.[0]?.moshaf ?? [];
+  const moshafs: { server?: string; surah_list?: string }[] = data?.reciters?.[0]?.moshaf ?? [];
   const moshaf = moshafs.find((m) => m.server === server) ?? moshafs[0];
   return String(moshaf?.surah_list ?? "")
     .split(",")
@@ -51,10 +32,7 @@ async function getSurahList(
     .filter((n) => Number.isInteger(n) && n >= 1 && n <= 114);
 }
 
-export async function getAudioInfo(
-  reciterId: string,
-  surah: number,
-): Promise<AudioInfo | null> {
+export async function getAudioInfo(reciterId: string, surah: number): Promise<AudioInfo | null> {
   if (!RECITERS.some((r) => r.id === reciterId)) return null;
   const reciter = getReciter(reciterId);
 
