@@ -769,3 +769,53 @@ header.sticky[data-hidden="true"] {
     color: rgb(var(--fg) / 0.45); /* no hover on phones: keep it visible */
   }
 }
+/* ---------- Reciter button arrow: bounces 3 times on load, and on hover ---------- */
+@keyframes arrow-bounce {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 3px;
+  }
+}
+.reciter-arrow {
+  animation: arrow-bounce 0.9s ease-in-out 3;
+}
+button:hover > .reciter-arrow {
+  animation-iteration-count: infinite;
+}
+/* Open menu: no bounce, just the rotation */
+button[aria-label^="القارئ"] .reciter-arrow.rotate-180 {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reciter-arrow {
+    animation: none;
+  }
+}
+/* ---------- Reciter button arrow: bounces 3 times on load, and on hover ---------- */
+@keyframes arrow-bounce {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 3px;
+  }
+}
+.reciter-arrow {
+  animation: arrow-bounce 0.9s ease-in-out 3;
+}
+button:hover > .reciter-arrow {
+  animation-iteration-count: infinite;
+}
+/* Open menu: no bounce, just the rotation */
+button[aria-label^="القارئ"] .reciter-arrow.rotate-180 {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reciter-arrow {
+    animation: none;
+  }
+}

@@ -46,29 +46,50 @@ export function Toolbar({
 
   return (
     <div ref={toolbarRef} className="glass flex items-center gap-1 rounded-full p-1.5 text-sm">
-      {menu === "reciter" && (
-        <Panel>
-          <ReciterList
-            value={prefs.reciter}
-            onChange={(id) => {
-              onReciterChange(id);
-              setMenu(null);
-            }}
-          />
-        </Panel>
-      )}
       {menu === "display" && (
         <Panel>
           <DisplaySettings prefs={prefs} update={update} />
         </Panel>
       )}
 
-      <ToolButton active={menu === "reciter"} onClick={() => toggleMenu("reciter")} label={`القارئ: ${reciter.name}`}>
-        {reciter.short}
-        <span aria-hidden className={`ms-1.5 inline-block text-[10px] transition ${menu === "reciter" ? "rotate-180" : ""}`}>
-          ▾
-        </span>
-      </ToolButton>
+      {/* Reciter: the list opens right above the button */}
+      <span className="relative">
+        {menu === "reciter" && (
+          <div className="absolute right-0 bottom-full mb-4 w-64 max-w-[calc(100vw-2rem)]">
+            <div className="rounded-2xl border border-white/15 bg-black p-1.5 shadow-[0_10px_40px_rgba(0,0,0,0.8)]">
+              <ReciterList
+                value={prefs.reciter}
+                onChange={(id) => {
+                  onReciterChange(id);
+                  setMenu(null);
+                }}
+              />
+            </div>
+          </div>
+        )}
+        <ToolButton
+          active={menu === "reciter"}
+          onClick={() => toggleMenu("reciter")}
+          label={`القارئ: ${reciter.name}`}
+          className="inline-flex items-center gap-1.5"
+        >
+          {reciter.short}
+          <svg
+            viewBox="0 0 24 24"
+            className={`reciter-arrow inline-block h-4 w-4 shrink-0 transition-transform duration-300 ${
+              menu === "reciter" ? "rotate-180" : ""
+            }`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </ToolButton>
+      </span>
       <Divider />
 
       {/* Phones and tablets: one button opens the display settings */}
